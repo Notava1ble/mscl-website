@@ -1,6 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion"
 import { CustomButton } from "@/components/ui-custom/Button"
-import { ChevronDown } from "lucide-react"
 
 export function Hero() {
   const { scrollY } = useScroll()
@@ -8,24 +7,15 @@ export function Hero() {
   const indicatorY = useTransform(scrollY, [0, 100], [0, 20])
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-20">
-      {/* Dynamic Background Elements */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-1/4 -left-1/4 h-1/2 w-1/2 rounded-full bg-primary/20 blur-[120px]"
+      {/* Background Image Container */}
+      <div className="absolute inset-0 z-0">
+        <div
+          className="absolute inset-0 scale-110 bg-cover bg-center bg-no-repeat opacity-80 blur-[25px] brightness-110 contrast-125"
+          style={{ backgroundImage: 'url("/images/minecraft_theend.png")' }}
         />
-        <motion.div
-          animate={{
-            scale: [1.1, 1, 1.1],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-          className="absolute -right-1/4 -bottom-1/4 h-1/2 w-1/2 rounded-full bg-primary/10 blur-[120px]"
-        />
+        {/* Overlay for depth and transition */}
+        <div className="absolute inset-0 bg-radial-[at_50%_40%] from-transparent via-background/40 to-background/90" />
+        <div className="absolute inset-0 bg-linear-to-b from-transparent via-background/20 to-background" />
       </div>
 
       <div className="relative z-10 container px-6 text-center">
@@ -68,21 +58,25 @@ export function Hero() {
       {/* Scroll indicator */}
       <motion.div
         style={{ opacity, y: indicatorY }}
-        className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 pointer-events-none"
+        className="pointer-events-none absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
       >
-        <span className="text-xs font-minecraft uppercase tracking-widest text-muted-foreground/60">
+        <span className="font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase">
           Learn More
         </span>
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        >
-          <ChevronDown className="h-6 w-6 text-primary" />
-        </motion.div>
+        <div className="flex h-10 w-6 items-start justify-center rounded-full border-2 border-primary/20 p-1.5 backdrop-blur-sm">
+          <motion.div
+            animate={{ 
+              y: [0, 12, 0],
+              opacity: [1, 0.5, 1]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="h-2 w-1 rounded-full bg-primary"
+          />
+        </div>
       </motion.div>
 
       {/* Decorative Minecraft-like pixel dots */}

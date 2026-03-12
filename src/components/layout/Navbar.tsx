@@ -61,9 +61,15 @@ export function Navbar() {
                 href={link.href}
                 target={link.external ? "_blank" : undefined}
                 rel={link.external ? "noopener noreferrer" : undefined}
-                className="text-sm font-medium hover:text-primary transition-colors hover:font-minecraft"
+                className="relative flex flex-col items-center justify-center text-sm font-medium hover:text-primary transition-colors group"
               >
-                {link.name}
+                <span className="group-hover:font-minecraft transition-all">
+                  {link.name}
+                </span>
+                {/* Reserve space for the Minecraft font to prevent layout shift */}
+                <span className="invisible h-0 font-minecraft select-none" aria-hidden="true">
+                  {link.name}
+                </span>
               </a>
             ))}
           </div>
