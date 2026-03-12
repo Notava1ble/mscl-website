@@ -13,12 +13,12 @@ export default defineSchema({
     .index("by_name", ["name"]),
 
   leagues: defineTable({
-    name: v.string(),
-    tierLevel: v.number(),
-  }),
+    name: v.string(), // lg_1, lg_2, etc.
+    tierLevel: v.number(), // 1, 2, 3, etc. (unique)
+  }).index("by_tier_level", ["tierLevel"]),
 
   weeks: defineTable({
-    weekNumber: v.number(),
+    weekNumber: v.number(), // 1, 2, 3, etc.
     isCurrent: v.boolean(),
   }),
 
