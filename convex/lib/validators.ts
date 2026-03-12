@@ -7,7 +7,7 @@ export const PlayersSchema = z.array(
       .min(1, "Name must be at least 1 character long."),
     elo: z
       .int("You must provide an elo for each player.")
-      .min(1, "Elo must be at least 1."),
+      .min(0, "Elo must be at least 0."),
     leagueTier: z
       .int("You must provide a league tier for each player.")
       .min(1, "League tier must be at least 1.")
