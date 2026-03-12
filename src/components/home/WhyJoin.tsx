@@ -1,31 +1,24 @@
 import { motion } from "framer-motion"
-import {
-  CustomCard,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui-custom/Card"
-
 const POINTS = [
   {
-    title: "Competitive Spirit",
+    title: "Play at your level",
     description:
-      "Join a community of the fastest players in the world. Compete in weekly leagues and climb the leaderboard.",
+      "Whether you're just starting out or you're a seasoned pro, we have a league for you. Compete with players of your skill level.",
     image: "/images/minecraft_speedrun_action_1773345645912.png",
     side: "left",
   },
   {
-    title: "Vibrant Community",
+    title: "Weekly Races",
     description:
-      "Connect with fellow runners, share strategies, and participate in events that go beyond just racing.",
-    image: "/images/minecraft_communities_1773345665091.png",
+      "Each league has a weekly race where players compete for points. Secure the most points to get promoted to the next league.",
+    image: "/images/minecraft_trophy_v2_1773345711754.png",
     side: "right",
   },
   {
-    title: "Epic Rewards",
+    title: "Vibrant Community",
     description:
-      "Earn your place in MSCL history. Exclusive trophies, discord roles, and the ultimate bragging rights.",
-    image: "/images/minecraft_trophy_v2_1773345711754.png",
+      "Join a community of passionate Minecraft speedrunners who love the game as much as you do. Compete, collaborate, and grow together.",
+    image: "/images/minecraft_communities_1773345665091.png",
     side: "left",
   },
 ]
@@ -42,8 +35,9 @@ export function WhyJoin() {
         <h2 className="mb-4 font-minecraft text-4xl uppercase md:text-6xl">
           Why Join MSCL?
         </h2>
-        <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-          The ultimate platform for Minecraft speedrunners and enthusiasts.
+        <p className="mx-auto max-w-2xl font-minecraft text-lg tracking-wide text-muted-foreground">
+          A competitive minecraft speedrunning league for everyone, no matter
+          your skill level.
         </p>
       </motion.div>
 
@@ -53,18 +47,23 @@ export function WhyJoin() {
             key={point.title}
             className={`flex flex-col ${point.side === "left" ? "md:flex-row" : "md:flex-row-reverse"} items-center gap-12`}
           >
-            <div className="flex-1">
-              <CustomCard className="border-none bg-accent/50 p-6">
-                <CardHeader>
-                  <CardTitle className="font-minecraft text-2xl text-primary">
-                    {point.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-lg leading-relaxed">{point.description}</p>
-                </CardContent>
-              </CustomCard>
-            </div>
+            <motion.div
+              initial={{
+                opacity: 0,
+                x: point.side === "left" ? -20 : 20,
+              }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="flex-1 space-y-4"
+            >
+              <h3 className="font-minecraft text-3xl text-primary">
+                {point.title}
+              </h3>
+              <p className="text-xl leading-relaxed text-muted-foreground">
+                {point.description}
+              </p>
+            </motion.div>
             <div className="w-full max-w-xl flex-1">
               <motion.div
                 initial={{
