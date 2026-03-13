@@ -3,17 +3,17 @@ import { v } from "convex/values"
 
 export const getCurrentWeek = query({
   handler: async (ctx) => {
-    const currentWeek = await ctx.db
+    return await ctx.db
       .query("weeks")
       .withIndex("by_current", (q) => q.eq("isCurrent", true))
       .first()
-    return currentWeek
   },
 })
 
 export const transitionWeek = internalMutation({
   args: {
     weekNumber: v.number(),
+    newWeek: v.number(),
     overwrite: v.boolean(),
     players: v.array(
       v.object({
@@ -24,75 +24,64 @@ export const transitionWeek = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
-    // Check if the week already exists
-    let newWeek = await ctx.db
+    // Find or create the week record for weekNumber
+    let week = await ctx.db
       .query("weeks")
       .withIndex("by_week_number", (q) => q.eq("weekNumber", args.weekNumber))
       .first()
 
-    if (newWeek) {
-      if (!args.overwrite) {
-        throw new Error(
-          `Week ${args.weekNumber} already exists. Pass overwrite=true to replace its standings. BEWARE THAT THIS CAN RESULT IN LOSS OF DATA IF NOT USED CAREFULLY!`
-        )
-      } else {
-        // Overwrite mode: delete existing standings for this week
-        const existingStandings = await ctx.db
-          .query("weeklyStandings")
-          .withIndex("by_week_and_player", (q) => q.eq("weekId", newWeek!._id))
-          .collect()
+    if (week) {
+      const existingStandings = await ctx.db
+        .query("weeklyStandings")
+        .withIndex("by_week", (q) => q.eq("weekId", week!._id))
+        .collect()
 
+      if (existingStandings.length > 0) {
+        if (!args.overwrite) {
+          return {
+            success: false,
+            error: `Standings for week ${args.weekNumber} already exist. Pass overwrite=true to replace them.`,
+            status: 409,
+          }
+        }
         for (const st of existingStandings) {
           await ctx.db.delete(st._id)
         }
       }
     } else {
-      // Mark current weeks as not current
-      const currentWeeks = await ctx.db
-        .query("weeks")
-        .withIndex("by_current", (q) => q.eq("isCurrent", true))
-        .collect()
-
-      for (const cw of currentWeeks) {
-        await ctx.db.patch(cw._id, { isCurrent: false })
-      }
-
-      // Create new week
+      // If the week doesn't exist, create it (this is theoretically not needed since the transition should only be run after a week is created, but safety i guess)
       const weekId = await ctx.db.insert("weeks", {
         weekNumber: args.weekNumber,
-        isCurrent: true,
+        isCurrent: false,
       })
-      newWeek = await ctx.db.get(weekId)
-      if (!newWeek) throw new Error("Failed to create new week")
+      week = await ctx.db.get(weekId)
+      if (!week) throw new Error("Failed to create week record")
     }
 
-    // Cache the resolved league IDs to avoid repeated unneeded queries
+    // Cache league IDs to avoid repeated queries
     const leagueCache = new Map<
       number,
       import("./_generated/dataModel").Id<"leagues">
     >()
 
     const getLeagueId = async (tier: number) => {
-      let leagueId = leagueCache.get(tier)
-      if (!leagueId) {
+      if (!leagueCache.has(tier)) {
         const league = await ctx.db
           .query("leagues")
           .withIndex("by_tier_level", (q) => q.eq("tierLevel", tier))
           .first()
-        if (league) {
-          leagueId = league._id
-        } else {
-          leagueId = await ctx.db.insert("leagues", {
-            name: `Tier ${tier}`,
-            tierLevel: tier,
-          })
-        }
+        const leagueId = league
+          ? league._id
+          : await ctx.db.insert("leagues", {
+              name: `Tier ${tier}`,
+              tierLevel: tier,
+            })
         leagueCache.set(tier, leagueId)
       }
-      return leagueId
+      return leagueCache.get(tier)!
     }
 
-    // 2. Process all players for the transition
+    // Process all players
     for (const p of args.players) {
       const finalLeagueId = await getLeagueId(p.leagueTier)
 
@@ -104,26 +93,17 @@ export const transitionWeek = internalMutation({
       let movement: "promoted" | "relegated" | "stayed" | "new" = "new"
 
       if (player) {
-        // Compare tiers
         const oldLeague = await ctx.db.get(player.currentLeagueId)
         if (oldLeague) {
-          if (oldLeague.tierLevel > p.leagueTier) {
-            // Lower number = higher tier (usually)
-            movement = "promoted"
-          } else if (oldLeague.tierLevel < p.leagueTier) {
-            movement = "relegated"
-          } else {
-            movement = "stayed"
-          }
+          if (oldLeague.tierLevel > p.leagueTier) movement = "promoted"
+          else if (oldLeague.tierLevel < p.leagueTier) movement = "relegated"
+          else movement = "stayed"
         }
-
-        // Update existing player
         await ctx.db.patch(player._id, {
           elo: p.elo,
           currentLeagueId: finalLeagueId,
         })
       } else {
-        // Create new player
         const playerId = await ctx.db.insert("players", {
           name: p.name,
           elo: p.elo,
@@ -133,13 +113,25 @@ export const transitionWeek = internalMutation({
         if (!player) throw new Error("Failed to create player")
       }
 
-      // Insert standing record
       await ctx.db.insert("weeklyStandings", {
-        weekId: newWeek._id,
+        weekId: week!._id,
+        weekNumber: args.weekNumber,
         playerId: player._id,
         movement,
       })
     }
+
+    // Mark all weeks as not current, then create the new current week
+    const allCurrentWeeks = await ctx.db
+      .query("weeks")
+      .withIndex("by_current", (q) => q.eq("isCurrent", true))
+      .collect()
+
+    for (const cw of allCurrentWeeks) {
+      await ctx.db.patch(cw._id, { isCurrent: false })
+    }
+
+    await ctx.db.insert("weeks", { weekNumber: args.newWeek, isCurrent: true })
 
     return { success: true, count: args.players.length }
   },

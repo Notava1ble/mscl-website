@@ -17,26 +17,47 @@ export const PlayersSchema = z.array(
 )
 
 export const MatchSchema = z.object({
-  weekNumber: z.number().int().min(1),
-  matchNumber: z.number().int().min(1),
-  leagueTier: z.number().int().min(1).max(6),
+  weekNumber: z
+    .int("weekNumber must be an integer.")
+    .min(1, "weekNumber must be at least 1."),
+  matchNumber: z
+    .int("matchNumber must be an integer.")
+    .min(1, "matchNumber must be at least 1."),
+  leagueTier: z
+    .int("leagueTier must be an integer.")
+    .min(1, "leagueTier must be at least 1.")
+    .max(6, "leagueTier must be at most 6."),
   results: z.array(
     z.object({
-      playerName: z.string().min(1),
-      pointsWon: z.number(),
-      timeMs: z.number(),
-    })
+      playerName: z
+        .string("playerName must be a string.")
+        .min(1, "playerName must be at least 1 character long."),
+      pointsWon: z.number("pointsWon must be a number."),
+      timeMs: z.number("timeMs must be a number."),
+    }),
+    "results must be an array."
   ),
 })
 
 export const WeekTransitionSchema = z.object({
-  weekNumber: z.number().int().min(1),
-  overwrite: z.boolean().default(false),
+  weekNumber: z
+    .int("weekNumber must be an integer.")
+    .min(1, "weekNumber must be at least 1."),
+  newWeek: z
+    .int("newWeek must be an integer.")
+    .min(1, "newWeek must be at least 1."),
+  overwrite: z.boolean("overwrite must be a boolean.").default(false),
   players: z.array(
     z.object({
-      name: z.string().min(1),
-      elo: z.number().int().min(0),
-      leagueTier: z.number().int().min(1).max(6),
-    })
+      name: z
+        .string("name must be a string.")
+        .min(1, "name must be at least 1 character long."),
+      elo: z.int("elo must be an integer.").min(0, "elo must be at least 0."),
+      leagueTier: z
+        .int("leagueTier must be an integer.")
+        .min(1, "leagueTier must be at least 1.")
+        .max(6, "leagueTier must be at most 6."),
+    }),
+    "players must be an array."
   ),
 })

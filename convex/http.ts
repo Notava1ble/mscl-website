@@ -106,11 +106,24 @@ http.route({
 
     // Run mutation
     try {
-      const result = await ctx.runMutation(internal.weeks.transitionWeek, {
+      const result = (await ctx.runMutation(internal.weeks.transitionWeek, {
         weekNumber: transitionData.weekNumber,
+        newWeek: transitionData.newWeek,
         overwrite: transitionData.overwrite,
         players: transitionData.players,
-      })
+      })) as {
+        success: boolean
+        error?: string
+        status?: number
+        count?: number
+      }
+
+      if (result.success === false) {
+        return jsonError(
+          result.error || "Transition failed",
+          result.status || 400
+        )
+      }
 
       return new Response(JSON.stringify(result), {
         status: 200,
