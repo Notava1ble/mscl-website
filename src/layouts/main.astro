@@ -1,5 +1,15 @@
 ---
 import "@/styles/global.css"
+import { Navbar } from "@/components/layout/Navbar"
+import { SITE_TITLE, SITE_DESCRIPTION } from "@/consts"
+
+interface Props {
+  title?: string
+  description?: string
+  image?: ImageMetadata
+}
+
+const { title, description, image } = Astro.props
 ---
 
 <html lang="en">
@@ -7,9 +17,13 @@ import "@/styles/global.css"
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>MSCL</title>
+    <title>{title || SITE_TITLE}</title>
+    <meta name="description" content={description || SITE_DESCRIPTION} />
   </head>
   <body class="dark">
-    <slot />
+    <Navbar client:load />
+    <main>
+      <slot />
+    </main>
   </body>
 </html>

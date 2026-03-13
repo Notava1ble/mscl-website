@@ -1,0 +1,11 @@
+---
+import Layout from "@/layouts/main.astro"
+import { LeaderboardPage } from "@/components/leaderboard/LeaderboardPage"
+---
+
+<Layout
+  title="MSCL Leaderboards"
+  description="View the leaderboards for all MSCL leagues."
+>
+  <LeaderboardPage client:load />
+</Layout>

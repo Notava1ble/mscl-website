@@ -2,7 +2,7 @@
 import { ConvexProvider, ConvexReactClient } from "convex/react"
 import type { ReactNode } from "react"
 
-const convex = new ConvexReactClient(process.env.PUBLIC_CONVEX_URL!)
+const convex = new ConvexReactClient(import.meta.env.PUBLIC_CONVEX_URL)
 
 export default function ConvexClientProvider({
   children,
