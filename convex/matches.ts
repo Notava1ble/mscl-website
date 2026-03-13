@@ -53,8 +53,8 @@ export const ingestMatch = internalMutation({
       .query("matches")
       .withIndex("by_week_league_match", (q) =>
         q
-          .eq("weekId", targetWeek!._id)
-          .eq("leagueId", league!._id)
+          .eq("weekId", targetWeek._id)
+          .eq("leagueId", league._id)
           .eq("matchNumber", args.matchNumber)
       )
       .first()

@@ -1,4 +1,4 @@
-import standings from "./data/wk1lg5standings"
+import standings from "./data/wk1standings"
 
 const CONVEX_SITE_URL = process.env.CONVEX_SITE_URL
 const MY_API_KEY = process.env.WRITER_API_KEY || "test_key_placeholder"

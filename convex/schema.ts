@@ -42,6 +42,8 @@ export default defineSchema({
   weeklyStandings: defineTable({
     weekId: v.id("weeks"),
     weekNumber: v.number(),
+    leagueId: v.id("leagues"),
+    leagueNumber: v.number(),
     playerId: v.id("players"),
     movement: v.union(
       v.literal("promoted"),
@@ -53,5 +55,6 @@ export default defineSchema({
     .index("by_week_and_player", ["weekId", "playerId"])
     .index("by_week", ["weekId"])
     .index("by_player", ["playerId"])
-    .index("by_week_number", ["weekNumber"]),
+    .index("by_week_number", ["weekNumber"])
+    .index("by_league", ["leagueId"]),
 })

@@ -1,17 +1,20 @@
-import matches from "./data/wk1league5matches"
+import matches from "./data/wk1league1matches"
 
 const CONVEX_SITE_URL = process.env.CONVEX_SITE_URL
 const MY_API_KEY = process.env.WRITER_API_KEY || "test_key_placeholder"
 
 const ENDPOINT = `${CONVEX_SITE_URL}/api/write/match`
 
-type matchNumber = 1 | 2 | 3 | 4 | 5 | 6
+// CONFIGURATION
+const numberOfMatches = Object.keys(matches.matches).length
+type matchNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+const leagueTier = 1
 
 const prepareMatchData = (match: typeof matches, matchNumber: matchNumber) => {
   return {
     weekNumber: 1,
     matchNumber: matchNumber,
-    leagueTier: 5,
+    leagueTier,
     results: match.matches[`${matchNumber}`]
       .filter((p) => p.played === true)
       .map((res) => ({
@@ -22,7 +25,7 @@ const prepareMatchData = (match: typeof matches, matchNumber: matchNumber) => {
   }
 }
 
-for (let i = 1; i <= 6; i++) {
+for (let i = 1; i <= numberOfMatches; i++) {
   console.log(`Ingesting match ${i}...`)
   const matchData = prepareMatchData(matches, i as matchNumber)
 

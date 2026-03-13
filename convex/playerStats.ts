@@ -25,6 +25,7 @@ export const getPlayerStats = query({
         const week = await ctx.db.get(standing.weekId)
         return {
           weekNumber: week?.weekNumber ?? 0,
+          leagueNumber: standing.leagueNumber,
           movement: standing.movement,
           weekId: standing.weekId,
         }
@@ -34,9 +35,7 @@ export const getPlayerStats = query({
 
     // 3. Get all match results for this player
     const allResults = await ctx.db.query("matchResults").collect()
-    const playerResults = allResults.filter(
-      (r) => r.playerId === args.playerId
-    )
+    const playerResults = allResults.filter((r) => r.playerId === args.playerId)
 
     // Group by match -> week
     const weeklyBreakdown: Record<
@@ -85,8 +84,7 @@ export const getPlayerStats = query({
       allTimes.length > 0
         ? allTimes.reduce((a, b) => a + b, 0) / allTimes.length
         : 0
-    const bestTimeMs =
-      allTimes.length > 0 ? Math.min(...allTimes) : 0
+    const bestTimeMs = allTimes.length > 0 ? Math.min(...allTimes) : 0
 
     return {
       name: player.name,

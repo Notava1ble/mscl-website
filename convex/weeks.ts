@@ -116,6 +116,8 @@ export const transitionWeek = internalMutation({
       await ctx.db.insert("weeklyStandings", {
         weekId: week!._id,
         weekNumber: args.weekNumber,
+        leagueId: finalLeagueId,
+        leagueNumber: p.leagueTier,
         playerId: player._id,
         movement,
       })
