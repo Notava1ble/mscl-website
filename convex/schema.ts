@@ -20,7 +20,7 @@ export default defineSchema({
   weeks: defineTable({
     weekNumber: v.number(), // 1, 2, 3, etc.
     isCurrent: v.boolean(),
-  }),
+  }).index("by_current", ["isCurrent"]),
 
   matches: defineTable({
     weekId: v.id("weeks"),
