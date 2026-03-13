@@ -11,7 +11,7 @@ import ConvexClientProvider from "@/components/ConvexClientProvider"
 
 function LeaderboardContent() {
   const leagues = useQuery(api.leagues.listLeagues)
-  const currentWeek = useQuery(api.weeks.getCurrentWeek)
+  // const currentWeek = useQuery(api.weeks.getCurrentWeek)
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [playerPanelOpen, setPlayerPanelOpen] = useState(false)

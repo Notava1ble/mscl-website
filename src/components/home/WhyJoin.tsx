@@ -42,7 +42,7 @@ export function WhyJoin() {
       </motion.div>
 
       <div className="space-y-24">
-        {POINTS.map((point, index) => (
+        {POINTS.map((point) => (
           <div
             key={point.title}
             className={`flex flex-col ${point.side === "left" ? "md:flex-row" : "md:flex-row-reverse"} items-center gap-12`}
