@@ -25,7 +25,7 @@ export default defineSchema({
   matches: defineTable({
     weekId: v.id("weeks"),
     leagueId: v.id("leagues"),
-    matchType: v.string(), // "regular" or "tiebreaker"
+    matchNumber: v.number(),
   }).index("by_week_and_league", ["weekId", "leagueId"]),
 
   matchResults: defineTable({
