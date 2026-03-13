@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { motion } from "framer-motion"
 import { CustomButton } from "@/components/ui-custom/Button"
-
 import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
 import { PlayerStatsPanel } from "./PlayerStatsPanel"
@@ -13,24 +12,44 @@ import ConvexClientProvider from "@/components/ConvexClientProvider"
 function LeaderboardContent() {
   const leagues = useQuery(api.leagues.listLeagues)
   const currentWeek = useQuery(api.weeks.getCurrentWeek)
-
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [playerPanelOpen, setPlayerPanelOpen] = useState(false)
 
-  // Auto-select first league when data arrives
+  // Auto-select league: prefer URL param, fall back to first league
   useEffect(() => {
-    if (leagues && leagues.length > 0 && !selectedLeagueId) {
-      setSelectedLeagueId(leagues[0]._id)
-    }
+    if (!leagues || leagues.length === 0 || selectedLeagueId) return
+
+    const params = new URLSearchParams(window.location.search)
+    const tierParam = params.get("league")
+
+    const matched = tierParam
+      ? leagues.find((l) => String(l.tierLevel) === tierParam)
+      : null
+
+    setSelectedLeagueId(matched ? matched._id : leagues[0]._id)
   }, [leagues, selectedLeagueId])
+
+  const onLeagueSelect = useCallback(
+    (leagueId: string) => {
+      setSelectedLeagueId(leagueId)
+      setSelectedPlayerId(null)
+
+      const league = leagues?.find((l) => l._id === leagueId)
+      if (league) {
+        const params = new URLSearchParams(window.location.search)
+        params.set("league", String(league.tierLevel))
+        history.pushState({}, "", `?${params.toString()}`)
+      }
+    },
+    [leagues]
+  )
 
   const standings = useQuery(
     api.leaderboard.getLeagueStandings,
     selectedLeagueId ? { leagueId: selectedLeagueId as Id<"leagues"> } : "skip"
   )
 
-  // Find the selected league's tier for the week link
   const selectedLeague = leagues?.find((l) => l._id === selectedLeagueId)
 
   function handlePlayerClick(playerId: string) {
@@ -65,9 +84,8 @@ function LeaderboardContent() {
         <LeagueSelector
           leagues={leagues}
           selectedLeagueId={selectedLeagueId}
-          onSelect={setSelectedLeagueId}
+          onSelect={onLeagueSelect}
         />
-
         {selectedLeague && (
           <a href={`/week?league=${selectedLeague.tierLevel}&week=latest`}>
             <CustomButton

@@ -19,7 +19,7 @@ export function LeagueSelector({
   selectedLeagueId,
   onSelect,
 }: LeagueSelectorProps) {
-  if (!leagues) {
+  if (!leagues || !selectedLeagueId) {
     return (
       <div className="flex gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -36,10 +36,7 @@ export function LeagueSelector({
   }
 
   return (
-    <Tabs
-      value={selectedLeagueId ?? undefined}
-      onValueChange={onSelect}
-    >
+    <Tabs value={selectedLeagueId} onValueChange={onSelect}>
       <TabsList variant="line" className="flex-wrap">
         {leagues.map((league) => (
           <TabsTrigger
