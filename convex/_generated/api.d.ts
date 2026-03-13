@@ -13,6 +13,7 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as leagues from "../leagues.js";
 import type * as lib_utils from "../lib/utils.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as matches from "../matches.js";
 import type * as playerStats from "../playerStats.js";
 import type * as players from "../players.js";
 import type * as weeks from "../weeks.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   leagues: typeof leagues;
   "lib/utils": typeof lib_utils;
   "lib/validators": typeof lib_validators;
+  matches: typeof matches;
   playerStats: typeof playerStats;
   players: typeof players;
   weeks: typeof weeks;

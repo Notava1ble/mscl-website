@@ -20,13 +20,17 @@ export default defineSchema({
   weeks: defineTable({
     weekNumber: v.number(), // 1, 2, 3, etc.
     isCurrent: v.boolean(),
-  }).index("by_current", ["isCurrent"]),
+  })
+    .index("by_current", ["isCurrent"])
+    .index("by_week_number", ["weekNumber"]),
 
   matches: defineTable({
     weekId: v.id("weeks"),
     leagueId: v.id("leagues"),
     matchNumber: v.number(),
-  }).index("by_week_and_league", ["weekId", "leagueId"]),
+  })
+    .index("by_week_and_league", ["weekId", "leagueId"])
+    .index("by_week_league_match", ["weekId", "leagueId", "matchNumber"]),
 
   matchResults: defineTable({
     matchId: v.id("matches"),
@@ -39,5 +43,7 @@ export default defineSchema({
     weekId: v.id("weeks"),
     playerId: v.id("players"),
     movement: v.string(), // "promoted", "relegated", "stayed", "new"
-  }).index("by_week_and_player", ["weekId", "playerId"]),
+  })
+    .index("by_week_and_player", ["weekId", "playerId"])
+    .index("by_week", ["weekId"]),
 })
