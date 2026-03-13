@@ -54,7 +54,7 @@ export function WhyJoin() {
               }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.5 }}
               className="flex-1 space-y-4"
             >
               <h3 className="font-minecraft text-3xl text-primary">
@@ -73,13 +73,14 @@ export function WhyJoin() {
                 }}
                 whileInView={{ opacity: 1, scale: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
+                transition={{ duration: 0.5 }}
                 className="relative aspect-video overflow-hidden rounded-lg border-2 border-primary/20 shadow-2xl"
               >
                 <div className="absolute inset-0 z-10 bg-linear-to-t from-black/40 to-transparent" />
                 <img
                   src={point.image}
                   alt={point.title}
+                  loading="lazy"
                   className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
                 />
               </motion.div>

@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform } from "framer-motion"
 import { CustomButton } from "@/components/ui-custom/Button"
+import { ChevronDown } from "lucide-react"
 
 export function Hero() {
   const { scrollY } = useScroll()
@@ -60,30 +61,11 @@ export function Hero() {
         style={{ opacity, y: indicatorY }}
         className="pointer-events-none absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
       >
-        <span className="font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase">
+        <span className="flex flex-col items-center gap-2 font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase">
           Learn More
+          <ChevronDown className="h-6 w-6 text-primary" />
         </span>
-        <div className="flex h-10 w-6 items-start justify-center rounded-full border-2 border-primary/20 p-1.5 backdrop-blur-sm">
-          <motion.div
-            animate={{ 
-              y: [0, 12, 0],
-              opacity: [1, 0.5, 1]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="h-2 w-1 rounded-full bg-primary"
-          />
-        </div>
       </motion.div>
-
-      {/* Decorative Minecraft-like pixel dots */}
-      <div className="absolute bottom-10 left-10 h-2 w-2 bg-primary/20" />
-      <div className="absolute bottom-20 left-15 h-2 w-2 bg-primary/10" />
-      <div className="absolute top-1/4 right-10 h-2 w-2 bg-primary/20" />
-      <div className="absolute right-20 bottom-1/4 h-2 w-2 bg-primary/15" />
     </section>
   )
 }

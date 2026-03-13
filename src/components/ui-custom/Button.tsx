@@ -6,7 +6,11 @@ interface CustomButtonProps extends React.ComponentProps<typeof BaseButton> {
   minecraft?: boolean
 }
 
-export function CustomButton({ className, minecraft = true, ...props }: CustomButtonProps) {
+export function CustomButton({
+  className,
+  minecraft = true,
+  ...props
+}: CustomButtonProps) {
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -15,9 +19,9 @@ export function CustomButton({ className, minecraft = true, ...props }: CustomBu
     >
       <BaseButton
         className={cn(
-          "relative transition-all duration-200 overflow-hidden",
+          "relative overflow-hidden transition-all duration-200",
           minecraft && "font-minecraft tracking-wider uppercase",
-          // Add a subtle "pixel" border look for a modern minecraft feel
+          // Add a subtle border look
           "after:absolute after:inset-0 after:border-b-4 after:border-black/20 hover:after:border-black/10 active:after:border-transparent",
           className
         )}
