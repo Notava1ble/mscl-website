@@ -46,6 +46,13 @@ export const getPlayerStats = query({
         totalPoints: number
         totalTimeMs: number
         times: number[]
+        matchDetails: {
+          matchId: import("./_generated/dataModel").Id<"matches">
+          matchNumber: number
+          placement: number | null
+          pointsWon: number
+          timeMs: number
+        }[]
       }
     > = {}
 
@@ -64,6 +71,7 @@ export const getPlayerStats = query({
           totalPoints: 0,
           totalTimeMs: 0,
           times: [],
+          matchDetails: [],
         }
       }
 
@@ -71,11 +79,27 @@ export const getPlayerStats = query({
       weeklyBreakdown[weekKey].totalPoints += result.pointsWon
       weeklyBreakdown[weekKey].totalTimeMs += result.timeMs
       weeklyBreakdown[weekKey].times.push(result.timeMs)
+
+      weeklyBreakdown[weekKey].matchDetails.push({
+        matchId: match._id,
+        matchNumber: match.matchNumber,
+        placement:
+          typeof (result as any).placement === "number"
+            ? (result as any).placement
+            : null,
+        pointsWon: result.pointsWon,
+        timeMs: result.timeMs,
+      })
     }
 
-    const weeks = Object.values(weeklyBreakdown).sort(
-      (a, b) => a.weekNumber - b.weekNumber
-    )
+    const weeks = Object.values(weeklyBreakdown)
+      .map((week) => ({
+        ...week,
+        matchDetails: week.matchDetails.sort(
+          (a, b) => a.matchNumber - b.matchNumber
+        ),
+      }))
+      .sort((a, b) => a.weekNumber - b.weekNumber)
 
     // 4. Compute summary stats
     const allTimes = playerResults.map((r) => r.timeMs)

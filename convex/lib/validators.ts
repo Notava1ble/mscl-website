@@ -34,6 +34,9 @@ export const MatchSchema = z.object({
         .min(1, "playerName must be at least 1 character long."),
       pointsWon: z.number("pointsWon must be a number."),
       timeMs: z.number("timeMs must be a number."),
+      placement: z
+        .int("placement must be an integer.")
+        .min(1, "placement must be at least 1."),
     }),
     "results must be an array."
   ),

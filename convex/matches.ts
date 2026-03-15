@@ -12,6 +12,7 @@ export const ingestMatch = internalMutation({
         playerName: v.string(),
         pointsWon: v.number(),
         timeMs: v.number(),
+        placement: v.number(),
       })
     ),
   },
@@ -80,7 +81,16 @@ export const ingestMatch = internalMutation({
     }
 
     // Insert results
+    const seenPlacements = new Set<number>()
     for (const res of args.results) {
+      if (seenPlacements.has(res.placement)) {
+        throw new Error("Duplicate placement detected within match results")
+      }
+      if (!Number.isInteger(res.placement) || res.placement < 1) {
+        throw new Error("Placement must be a positive integer")
+      }
+      seenPlacements.add(res.placement)
+
       // Find or create player
       let player = await ctx.db
         .query("players")
@@ -102,6 +112,7 @@ export const ingestMatch = internalMutation({
         playerId: player._id,
         pointsWon: res.pointsWon,
         timeMs: res.timeMs,
+        placement: res.placement,
       })
     }
 

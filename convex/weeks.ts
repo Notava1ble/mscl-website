@@ -81,9 +81,19 @@ export const transitionWeek = internalMutation({
       return leagueCache.get(tier)!
     }
 
-    // Process all players
+    // Upsert all players and group by OLD league tier
+    // leagueTier in args is the NEW league after promotion/relegation.
+    // We group by the old league because that's where matches were played this week.
+    type PlayerEntry = {
+      playerId: import("./_generated/dataModel").Id<"players">
+      oldLeagueTier: number
+      movement: "promoted" | "relegated" | "stayed" | "new"
+    }
+
+    const leagueGroups = new Map<number, PlayerEntry[]>()
+
     for (const p of args.players) {
-      const finalLeagueId = await getLeagueId(p.leagueTier)
+      const newLeagueId = await getLeagueId(p.leagueTier)
 
       let player = await ctx.db
         .query("players")
@@ -91,39 +101,91 @@ export const transitionWeek = internalMutation({
         .first()
 
       let movement: "promoted" | "relegated" | "stayed" | "new" = "new"
+      // For new players there is no old league, so fall back to their new tier
+      let oldLeagueTier = p.leagueTier
 
       if (player) {
         const oldLeague = await ctx.db.get(player.currentLeagueId)
         if (oldLeague) {
+          oldLeagueTier = oldLeague.tierLevel
           if (oldLeague.tierLevel > p.leagueTier) movement = "promoted"
           else if (oldLeague.tierLevel < p.leagueTier) movement = "relegated"
           else movement = "stayed"
         }
         await ctx.db.patch(player._id, {
           elo: p.elo,
-          currentLeagueId: finalLeagueId,
+          currentLeagueId: newLeagueId,
         })
       } else {
         const playerId = await ctx.db.insert("players", {
           name: p.name,
           elo: p.elo,
-          currentLeagueId: finalLeagueId,
+          currentLeagueId: newLeagueId,
         })
         player = await ctx.db.get(playerId)
         if (!player) throw new Error("Failed to create player")
       }
 
-      await ctx.db.insert("weeklyStandings", {
-        weekId: week!._id,
-        weekNumber: args.weekNumber,
-        leagueId: finalLeagueId,
-        leagueNumber: p.leagueTier,
-        playerId: player._id,
-        movement,
-      })
+      // Group by OLD tier so we can later calculate the standings for that tier
+      const group = leagueGroups.get(oldLeagueTier) ?? []
+      group.push({ playerId: player._id, oldLeagueTier, movement })
+      leagueGroups.set(oldLeagueTier, group)
     }
 
-    // Mark all weeks as not current, then create the new current week
+    // Per old league, sum points and rank players
+    for (const [oldTier, entries] of leagueGroups) {
+      const oldLeagueId = await getLeagueId(oldTier)
+
+      // Fetch all matches played in this league during this week
+      const matches = await ctx.db
+        .query("matches")
+        .withIndex("by_week_and_league", (q) =>
+          q.eq("weekId", week._id).eq("leagueId", oldLeagueId)
+        )
+        .collect()
+
+      // Accumulate totalPoints per player across all matches in this league
+      const pointsMap = new Map<
+        import("./_generated/dataModel").Id<"players">,
+        number
+      >()
+
+      for (const match of matches) {
+        const results = await ctx.db
+          .query("matchResults")
+          .withIndex("by_match", (q) => q.eq("matchId", match._id))
+          .collect()
+
+        for (const result of results) {
+          const current = pointsMap.get(result.playerId) ?? 0
+          pointsMap.set(result.playerId, current + result.pointsWon)
+        }
+      }
+
+      // Sort descending by totalPoints to assign finalPlacement
+      const sorted = [...entries].sort((a, b) => {
+        const pointsA = pointsMap.get(a.playerId) ?? 0
+        const pointsB = pointsMap.get(b.playerId) ?? 0
+        return pointsB - pointsA
+      })
+
+      // Insert weeklyStandings — leagueId/leagueNumber reflect the league they competed in
+      for (let i = 0; i < sorted.length; i++) {
+        const { playerId, movement } = sorted[i]
+        await ctx.db.insert("weeklyStandings", {
+          weekId: week!._id,
+          weekNumber: args.weekNumber,
+          leagueId: oldLeagueId,
+          leagueNumber: oldTier,
+          playerId,
+          totalPoints: pointsMap.get(playerId) ?? 0,
+          finalPlacement: i + 1,
+          movement,
+        })
+      }
+    }
+
+    // Advance the current week
     const allCurrentWeeks = await ctx.db
       .query("weeks")
       .withIndex("by_current", (q) => q.eq("isCurrent", true))

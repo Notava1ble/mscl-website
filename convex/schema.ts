@@ -37,7 +37,10 @@ export default defineSchema({
     playerId: v.id("players"),
     pointsWon: v.number(),
     timeMs: v.number(),
-  }).index("by_match", ["matchId"]),
+    placement: v.number(),
+  })
+    .index("by_match", ["matchId"])
+    .index("by_player", ["playerId"]),
 
   weeklyStandings: defineTable({
     weekId: v.id("weeks"),
@@ -45,12 +48,14 @@ export default defineSchema({
     leagueId: v.id("leagues"),
     leagueNumber: v.number(),
     playerId: v.id("players"),
+    finalPlacement: v.number(),
+    totalPoints: v.number(),
     movement: v.union(
       v.literal("promoted"),
       v.literal("relegated"),
       v.literal("stayed"),
       v.literal("new")
-    ), // "promoted", "relegated", "stayed", "new"
+    ),
   })
     .index("by_week_and_player", ["weekId", "playerId"])
     .index("by_week", ["weekId"])

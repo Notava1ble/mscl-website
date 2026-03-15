@@ -1,0 +1,3 @@
+- [ ] Change the schema so match results have placements
+- [ ] Update the playerStats to show the placement in each match
+- [ ] Update the match API to fill placements

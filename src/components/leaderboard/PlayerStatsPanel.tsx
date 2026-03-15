@@ -272,6 +272,38 @@ export function PlayerStatsPanel({
                       {week.times && week.times.length > 0 && (
                         <MatchTimesChart times={week.times} />
                       )}
+
+                      {/* Per-match placements for this player in the week */}
+                      {week.matchDetails && week.matchDetails.length > 0 && (
+                        <div className="border-t border-primary/10 px-3 pt-1.5 pb-3">
+                          <span className="mb-1.5 block text-[9px] tracking-wider text-muted-foreground uppercase">
+                            Match Placements
+                          </span>
+                          <div className="flex flex-col gap-1">
+                            {week.matchDetails.map((match) => (
+                              <div
+                                key={match.matchId}
+                                className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground"
+                              >
+                                <span className="text-[9px] tracking-wider uppercase text-muted-foreground/80">
+                                  Match {match.matchNumber}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">
+                                    {match.placement
+                                      ? `#${match.placement}`
+                                      : "—"}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground/70">
+                                    {formatTime(match.timeMs)} ·{" "}
+                                    {match.pointsWon} pts
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
