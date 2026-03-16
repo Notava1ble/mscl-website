@@ -7,7 +7,7 @@ export function Hero() {
   const opacity = useTransform(scrollY, [0, 100], [1, 0])
   const indicatorY = useTransform(scrollY, [0, 100], [0, 20])
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-8 md:pt-20">
+    <section className="relative flex min-h-[80vh] flex-col items-center justify-start overflow-hidden pt-28 md:min-h-screen md:justify-center md:pt-20">
       {/* Background Image Container */}
       <div className="absolute inset-0 z-0">
         <div
@@ -64,7 +64,7 @@ export function Hero() {
       {/* Scroll indicator */}
       <motion.div
         style={{ opacity, y: indicatorY }}
-        className="pointer-events-none absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
+        className="pointer-events-none absolute bottom-10 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 sm:flex"
       >
         <span className="flex flex-col items-center gap-2 font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase">
           Learn More
