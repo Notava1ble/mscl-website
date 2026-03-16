@@ -14,10 +14,10 @@ export const getPlayerStats = query({
     const currentLeague = await ctx.db.get(player.currentLeagueId)
 
     // 2. Get all weekly standings for this player (league history + movement)
-    const allStandings = await ctx.db.query("weeklyStandings").collect()
-    const playerStandings = allStandings.filter(
-      (s) => s.playerId === args.playerId
-    )
+    const playerStandings = await ctx.db
+      .query("weeklyStandings")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect()
 
     // Build league history with week info
     const leagueHistory = await Promise.all(
@@ -34,8 +34,10 @@ export const getPlayerStats = query({
     leagueHistory.sort((a, b) => a.weekNumber - b.weekNumber)
 
     // 3. Get all match results for this player
-    const allResults = await ctx.db.query("matchResults").collect()
-    const playerResults = allResults.filter((r) => r.playerId === args.playerId)
+    const playerResults = await ctx.db
+      .query("matchResults")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect()
 
     // Group by match -> week
     const weeklyBreakdown: Record<

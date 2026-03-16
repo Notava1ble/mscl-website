@@ -26,7 +26,7 @@ export const ingestMatch = internalMutation({
     // Autocreate week if it doesnt exist
     if (!targetWeek) {
       const weekId = await ctx.db.insert("weeks", {
-        weekNumber: 1,
+        weekNumber: args.weekNumber,
         isCurrent: true,
       })
       targetWeek = await ctx.db.get(weekId)
