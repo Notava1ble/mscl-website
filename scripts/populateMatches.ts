@@ -1,4 +1,4 @@
-import matches from "./data/wk1league1matches"
+import matches from "./data/wk1league5matches"
 
 const CONVEX_SITE_URL = process.env.CONVEX_SITE_URL
 const MY_API_KEY = process.env.WRITER_API_KEY || "test_key_placeholder"
@@ -7,8 +7,8 @@ const ENDPOINT = `${CONVEX_SITE_URL}/api/write/match`
 
 // CONFIGURATION
 const numberOfMatches = Object.keys(matches.matches).length
-type matchNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
-const leagueTier = 1
+type matchNumber = 1 | 2 | 3 | 4 | 5 | 6
+const leagueTier = 5
 
 const prepareMatchData = (match: typeof matches, matchNumber: matchNumber) => {
   return {
@@ -20,6 +20,7 @@ const prepareMatchData = (match: typeof matches, matchNumber: matchNumber) => {
       .map((res) => ({
         playerName: res.player,
         pointsWon: res.pts,
+        placement: res.rank,
         timeMs: res.time * 1000, // convert seconds to ms
       })),
   }

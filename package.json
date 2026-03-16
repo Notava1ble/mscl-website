@@ -10,7 +10,8 @@
     "astro": "astro",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,astro}\"",
-    "typecheck": "astro check"
+    "typecheck": "astro check",
+    "deploy": "bunx convex deploy --cmd 'bun run build'"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.7",
