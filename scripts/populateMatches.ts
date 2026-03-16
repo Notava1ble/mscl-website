@@ -1,14 +1,14 @@
-import matches from "./data/wk1league5matches"
+import matches from "./data/wk1league1matches"
 
-const CONVEX_SITE_URL = process.env.CONVEX_SITE_URL
+const CONVEX_SITE_URL = process.env.PRODUCTION_CONVEX_SITE
 const MY_API_KEY = process.env.WRITER_API_KEY || "test_key_placeholder"
 
 const ENDPOINT = `${CONVEX_SITE_URL}/api/write/match`
 
 // CONFIGURATION
 const numberOfMatches = Object.keys(matches.matches).length
-type matchNumber = 1 | 2 | 3 | 4 | 5 | 6
-const leagueTier = 5
+type matchNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+const leagueTier = 1
 
 const prepareMatchData = (match: typeof matches, matchNumber: matchNumber) => {
   return {

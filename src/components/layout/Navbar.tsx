@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { name: "Week", href: "/week" },
   { name: "Leaderboard", href: "/leaderboard" },
   { name: "Info", href: "/info" },
-  { name: "Discord", href: "https://discord.gg/mscl", external: true },
+  { name: "Discord", href: "https://discord.gg/zzptZsec42", external: true },
 ]
 
 export function Navbar() {
@@ -40,34 +40,37 @@ export function Navbar() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         className={cn(
-          "fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4",
+          "fixed top-0 right-0 left-0 z-50 px-6 py-4 transition-all duration-300",
           isScrolled || isMenuOpen
-            ? "bg-background/80 backdrop-blur-md border-b"
+            ? "border-b bg-background/80 backdrop-blur-md"
             : "bg-transparent"
         )}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2 group">
-            <span className="font-minecraft text-2xl tracking-tighter text-primary group-hover:scale-110 transition-transform">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <a href="/" className="group flex items-center gap-2">
+            <span className="font-minecraft text-2xl tracking-tighter text-primary transition-transform group-hover:scale-110">
               MSCL
             </span>
           </a>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden items-center gap-8 md:flex">
             {NAV_LINKS.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
                 target={link.external ? "_blank" : undefined}
                 rel={link.external ? "noopener noreferrer" : undefined}
-                className="relative flex flex-col items-center justify-center text-sm font-medium hover:text-primary transition-colors group"
+                className="group relative flex flex-col items-center justify-center text-sm font-medium transition-colors hover:text-primary"
               >
-                <span className="group-hover:font-minecraft transition-all">
+                <span className="transition-all group-hover:font-minecraft">
                   {link.name}
                 </span>
                 {/* Reserve space for the Minecraft font to prevent layout shift */}
-                <span className="invisible h-0 font-minecraft select-none" aria-hidden="true">
+                <span
+                  className="invisible h-0 font-minecraft select-none"
+                  aria-hidden="true"
+                >
                   {link.name}
                 </span>
               </a>
@@ -78,7 +81,7 @@ export function Navbar() {
           <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-foreground hover:bg-muted rounded-md transition-colors"
+              className="rounded-md p-2 text-foreground transition-colors hover:bg-muted"
               aria-label="Toggle Menu"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -95,7 +98,7 @@ export function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-40 bg-background pt-24 px-6 md:hidden flex flex-col"
+            className="fixed inset-0 z-40 flex flex-col bg-background px-6 pt-24 md:hidden"
           >
             <div className="flex flex-col gap-6">
               {NAV_LINKS.map((link, i) => (
@@ -108,7 +111,7 @@ export function Navbar() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="text-3xl font-minecraft hover:text-primary transition-colors"
+                  className="font-minecraft text-3xl transition-colors hover:text-primary"
                 >
                   {link.name}
                 </motion.a>
@@ -117,9 +120,9 @@ export function Navbar() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: NAV_LINKS.length * 0.05 }}
-                className="mt-8 pt-8 border-t"
+                className="mt-8 border-t pt-8"
               >
-                <CustomButton className="w-full text-center py-6 text-xl">
+                <CustomButton className="w-full py-6 text-center text-xl">
                   Join The League
                 </CustomButton>
               </motion.div>

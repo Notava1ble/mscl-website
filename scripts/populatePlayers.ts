@@ -1,6 +1,6 @@
 import Players from "./data/players"
 
-const CONVEX_SITE_URL = process.env.CONVEX_SITE_URL
+const CONVEX_SITE_URL = process.env.PRODUCTION_CONVEX_SITE
 const MY_API_KEY = process.env.WRITER_API_KEY || "test_key_placeholder"
 
 const ENDPOINT = `${CONVEX_SITE_URL}/api/write/players`

@@ -7,7 +7,7 @@ export function Hero() {
   const opacity = useTransform(scrollY, [0, 100], [1, 0])
   const indicatorY = useTransform(scrollY, [0, 100], [0, 20])
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-20">
+    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-12 md:pt-20">
       {/* Background Image Container */}
       <div className="absolute inset-0 z-0">
         <div
@@ -47,7 +47,12 @@ export function Hero() {
           transition={{ duration: 0.8, delay: 0.5 }}
           className="flex flex-col items-center justify-center gap-4 sm:flex-row"
         >
-          <CustomButton size="lg" className="h-14 px-12 text-lg">
+          <CustomButton
+            size="lg"
+            className="h-14 px-12 text-lg"
+            href="https://discord.gg/zzptZsec42"
+            target="_self"
+          >
             Join Now
           </CustomButton>
           <CustomButton variant="outline" size="lg" className="h-14 px-6">

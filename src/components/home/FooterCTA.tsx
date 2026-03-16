@@ -22,7 +22,12 @@ export function FooterCTA() {
           </p>
 
           <div className="flex flex-col items-center justify-center gap-6 sm:flex-row">
-            <CustomButton size="lg" className="h-16 px-16 text-xl">
+            <CustomButton
+              size="lg"
+              className="h-16 px-16 text-xl"
+              href="https://discord.gg/zzptZsec42"
+              target="_self"
+            >
               Join the League
             </CustomButton>
             <CustomButton
