@@ -10,8 +10,7 @@
     "astro": "astro",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,astro}\"",
-    "typecheck": "astro check",
-    "deploy": "sh ./deploy.sh"
+    "typecheck": "astro check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.7",
