@@ -7,7 +7,7 @@ export function Hero() {
   const opacity = useTransform(scrollY, [0, 100], [1, 0])
   const indicatorY = useTransform(scrollY, [0, 100], [0, 20])
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-12 md:pt-20">
+    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden pt-8 md:pt-20">
       {/* Background Image Container */}
       <div className="absolute inset-0 z-0">
         <div
