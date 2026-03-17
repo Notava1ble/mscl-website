@@ -13,11 +13,14 @@ import { ChevronDown } from "lucide-react"
       style='background-image: url("/images/minecraft_theend.png")'
     >
     </div>
-    <!-- Overlay for depth and transition -->
+
+    <!-- Radial blur to bring the focus to the center -->
     <div
       class="absolute inset-0 bg-radial-[at_50%_40%] from-transparent via-background/40 to-background/90"
     >
     </div>
+
+    <!-- Blur below to transition to the other section -->
     <div
       class="absolute inset-0 bg-linear-to-b from-transparent via-background/20 to-background"
     >
@@ -31,7 +34,6 @@ import { ChevronDown } from "lucide-react"
       MINECRAFT
       <span class="relative mt-2 block text-primary">SPEEDRUNNING</span>
     </h1>
-
     <div class="animate-slide-up mb-12 opacity-0 delay-200">
       <span
         class="font-minecraft text-3xl font-bold tracking-widest text-muted-foreground/80 uppercase md:text-5xl"
@@ -42,7 +44,6 @@ import { ChevronDown } from "lucide-react"
         This is not a final product in the slightest. Please be patient.
       </p>
     </div>
-
     <div
       class="animate-slide-up flex flex-col items-center justify-center gap-4 opacity-0 delay-300 sm:flex-row"
     >
@@ -62,7 +63,9 @@ import { ChevronDown } from "lucide-react"
 
   <!-- Scroll indicator -->
   <div
-    class="animate-fade-in pointer-events-none absolute bottom-10 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 opacity-0 delay-500 sm:flex"
+    id="scroll-indicator"
+    class="pointer-events-none absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 transition-opacity duration-300 max-sm:hidden"
+    style="opacity: 0"
   >
     <span
       class="flex flex-col items-center gap-2 font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase"
@@ -72,3 +75,23 @@ import { ChevronDown } from "lucide-react"
     </span>
   </div>
 </section>
+
+<script>
+  const scrollIndicator = document.getElementById(
+    "scroll-indicator"
+  ) as HTMLElement
+
+  setTimeout(() => {
+    if (window.scrollY <= 20) {
+      scrollIndicator.style.opacity = "1"
+    }
+  }, 500)
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      scrollIndicator.style.opacity = window.scrollY > 20 ? "0" : "1"
+    },
+    { passive: true }
+  )
+</script>
