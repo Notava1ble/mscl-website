@@ -21,7 +21,7 @@ function formatTime(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`
 }
 
-// ELO tier config — mirrors StandingsTable coloring
+// ELO tier config
 const ELO_TIERS = [
   {
     min: 2000,
@@ -137,7 +137,6 @@ export function PlayerStatsPanel({
         side="right"
         className="flex flex-col gap-0 overflow-hidden border-l border-primary/10 p-0 sm:max-w-md"
       >
-        {/* Accessibility */}
         <SheetHeader className="sr-only">
           <SheetTitle>{stats?.name ?? "Player Stats"}</SheetTitle>
           <SheetDescription>
@@ -151,7 +150,6 @@ export function PlayerStatsPanel({
           <LoadingSkeleton />
         ) : (
           <div className="flex h-full flex-col overflow-y-auto">
-            {/* ── Player Header ── */}
             <div
               className={cn(
                 "border-b border-primary/10 px-6 pt-8 pb-6",
@@ -165,7 +163,6 @@ export function PlayerStatsPanel({
                 {stats.name}
               </h2>
 
-              {/* Tier badge inline with ELO in parenthesis */}
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={cn(
@@ -187,7 +184,6 @@ export function PlayerStatsPanel({
               </div>
             </div>
 
-            {/* ── Summary Stats ── */}
             <div className="grid grid-cols-3 divide-x divide-primary/10 border-b border-primary/10">
               <StatCell
                 label="Matches"
@@ -204,7 +200,6 @@ export function PlayerStatsPanel({
               />
             </div>
 
-            {/* ── Weekly Breakdown ── */}
             <div className="flex flex-col gap-3 px-6 py-6">
               <h4 className="text-[10px] tracking-[0.3em] text-muted-foreground uppercase">
                 Weekly Breakdown
@@ -221,7 +216,6 @@ export function PlayerStatsPanel({
                       key={i}
                       className="overflow-hidden rounded-sm border border-primary/10 bg-primary/3"
                     >
-                      {/* Card header */}
                       <div className="flex items-center justify-between border-b border-primary/10 bg-primary/4 px-3 py-2">
                         <div className="flex items-center gap-2">
                           <span className="font-minecraft text-xs tracking-wider text-foreground/90 uppercase">
@@ -236,7 +230,6 @@ export function PlayerStatsPanel({
                         <MovementBadge movement={week.movement} />
                       </div>
 
-                      {/* Stats row — equal thirds */}
                       <div className="grid grid-cols-3 divide-x divide-primary/10 px-0 py-0">
                         <div className="flex flex-col px-3 py-2.5">
                           <span className="text-[9px] tracking-wider text-muted-foreground uppercase">
@@ -268,12 +261,10 @@ export function PlayerStatsPanel({
                         </div>
                       </div>
 
-                      {/* Match times — ranked bar chart */}
                       {week.times && week.times.length > 0 && (
                         <MatchTimesChart times={week.times} />
                       )}
 
-                      {/* Per-match placements for this player in the week */}
                       {week.matchDetails && week.matchDetails.length > 0 && (
                         <div className="border-t border-primary/10 px-3 pt-1.5 pb-3">
                           <span className="mb-1.5 block text-[9px] tracking-wider text-muted-foreground uppercase">
@@ -283,9 +274,9 @@ export function PlayerStatsPanel({
                             {week.matchDetails.map((match) => (
                               <div
                                 key={match.matchId}
-                                className="flex items-center justify-between text-[11px] tabular-nums text-muted-foreground"
+                                className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums"
                               >
-                                <span className="text-[9px] tracking-wider uppercase text-muted-foreground/80">
+                                <span className="text-[9px] tracking-wider text-muted-foreground/80 uppercase">
                                   Match {match.matchNumber}
                                 </span>
                                 <div className="flex items-center gap-2">
@@ -316,10 +307,6 @@ export function PlayerStatsPanel({
   )
 }
 
-// ── Match Times Chart ───────────────────────────────────────────
-// Ranked rows sorted fastest → slowest.
-// Each row has a proportional fill bar so relative speed is scannable at a glance.
-
 function MatchTimesChart({ times }: { times: number[] }) {
   const sorted = [...times]
     .map((t, originalIndex) => ({ t, originalIndex }))
@@ -327,7 +314,7 @@ function MatchTimesChart({ times }: { times: number[] }) {
 
   const best = sorted[0].t
   const worst = sorted[sorted.length - 1].t
-  const range = worst - best || 1 // guard against all-equal times
+  const range = worst - best || 1 // guard against equal times
 
   return (
     <div className="border-t border-primary/10 px-3 pt-0.5 pb-3">
@@ -337,12 +324,10 @@ function MatchTimesChart({ times }: { times: number[] }) {
       <div className="flex flex-col gap-1.5">
         {sorted.map(({ t }, rank) => {
           const isBest = rank === 0
-          // Best = 100% fill, slowest = ~10% so slow times barely show
           const fillPct = 100 - ((t - best) / range) * 90
 
           return (
             <div key={rank} className="flex items-center gap-2">
-              {/* Rank number */}
               <span
                 className={cn(
                   "w-4 shrink-0 text-right text-[10px] tabular-nums",
@@ -352,7 +337,6 @@ function MatchTimesChart({ times }: { times: number[] }) {
                 {rank + 1}
               </span>
 
-              {/* Bar + label */}
               <div className="relative h-5 flex-1 overflow-hidden rounded-sm bg-primary/5">
                 <div
                   className={cn(
@@ -377,8 +361,6 @@ function MatchTimesChart({ times }: { times: number[] }) {
     </div>
   )
 }
-
-// ── Sub-components ──────────────────────────────────────────────
 
 function StatCell({
   label,

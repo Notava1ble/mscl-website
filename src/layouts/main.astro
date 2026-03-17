@@ -1,6 +1,6 @@
 ---
 import "@/styles/global.css"
-import { Navbar } from "@/components/layout/Navbar"
+import Navbar from "@/components/layout/Navbar.astro"
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/consts"
 
 interface Props {
@@ -21,7 +21,7 @@ const { title, description, image } = Astro.props
     <meta name="description" content={description || SITE_DESCRIPTION} />
   </head>
   <body class="dark">
-    <Navbar client:load />
+    <Navbar />
     <main>
       <slot />
     </main>

@@ -1,0 +1,71 @@
+---
+const POINTS = [
+  {
+    title: "Play at your level",
+    description:
+      "Whether you're just starting out or you're a seasoned pro, we have a league for you. Compete with players of your skill level.",
+    image: "/images/minecraft_speedrun_action_1773345645912.png",
+    side: "left",
+  },
+  {
+    title: "Weekly Races",
+    description:
+      "Each league has a weekly race where players compete for points. Secure the most points to get promoted to the next league.",
+    image: "/images/minecraft_trophy_v2_1773345711754.png",
+    side: "right",
+  },
+  {
+    title: "Vibrant Community",
+    description:
+      "Join a community of passionate Minecraft speedrunners who love the game as much as you do. Compete, collaborate, and grow together.",
+    image: "/images/minecraft_communities_1773345665091.png",
+    side: "left",
+  },
+]
+---
+
+<section class="container mx-auto px-6 py-16 md:py-24">
+  <div class="animate-slide-up mb-16 text-center opacity-0">
+    <h2 class="mb-4 font-minecraft text-4xl uppercase md:text-6xl">
+      Why Join MSCL?
+    </h2>
+    <p
+      class="mx-auto max-w-2xl font-minecraft text-lg tracking-wide text-muted-foreground"
+    >
+      A competitive minecraft speedrunning league for everyone, no matter your
+      skill level.
+    </p>
+  </div>
+
+  <div class="space-y-24">
+    {
+      POINTS.map((point) => (
+        <div
+          class={`flex flex-col ${point.side === "left" ? "md:flex-row" : "md:flex-row-reverse"} items-center gap-12`}
+        >
+          <div class="animate-slide-up flex-1 space-y-4 opacity-0">
+            <h3 class="font-minecraft text-3xl text-primary">{point.title}</h3>
+            <p class="text-xl leading-relaxed text-muted-foreground">
+              {point.description}
+            </p>
+          </div>
+          <div class="animate-slide-up relative w-full max-w-xl flex-1 opacity-0">
+            <div class="relative aspect-video overflow-hidden rounded-lg border-2 border-primary/20 shadow-2xl">
+              <img
+                src={point.image}
+                alt={point.title}
+                loading="lazy"
+                class="h-full w-full object-cover"
+              />
+              <p class="text absolute top-1/2 left-1/2 w-4/5 -translate-1/2 bg-destructive/80">
+                These slop images are just placeholders. The real images will be
+                way better, I promise. If you want to help out with some good
+                images, dm them to me on discord.
+              </p>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+</section>

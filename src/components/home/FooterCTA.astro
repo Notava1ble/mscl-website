@@ -1,0 +1,51 @@
+---
+import { CustomButton } from "@/components/ui-custom/Button"
+---
+
+<>
+  <section
+    class="container mx-auto border-t border-primary/10 px-6 py-24 text-center"
+  >
+    <div class="animate-slide-up mx-auto max-w-4xl opacity-0">
+      <h2
+        class="mb-6 font-minecraft text-4xl tracking-tighter uppercase md:text-7xl"
+      >
+        Ready to <span class="text-primary italic">Speedrun?</span>
+      </h2>
+
+      <p class="mx-auto mb-12 max-w-2xl text-xl text-muted-foreground">
+        The next season is about to start. Secure your spot in the league and
+        show the world what you're capable of.
+      </p>
+
+      <div class="flex flex-col items-center justify-center gap-6 sm:flex-row">
+        <CustomButton
+          size="lg"
+          className="h-16 px-16 text-xl"
+          href="https://discord.gg/zzptZsec42"
+          target="_self"
+        >
+          Join the League
+        </CustomButton>
+        <CustomButton
+          variant="outline"
+          size="lg"
+          className="h-16 px-16 text-xl"
+          minecraft={false}
+        >
+          View Weekly Stats
+        </CustomButton>
+      </div>
+
+      <div class="animate-float mt-16 text-primary/40">
+        <div class="font-minecraft text-sm tracking-[0.3em] uppercase">
+          Minecraft Community Leagues © 2026
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="mb-4 text-center text-sm text-muted">
+    This is not an official Minecraft product. Not approved by or associated
+    with Mojang or Microsoft.
+  </div>
+</>

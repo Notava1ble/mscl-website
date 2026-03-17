@@ -160,7 +160,66 @@
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklch, var(--primary) 30%, transparent) transparent;
+    scrollbar-color: color-mix(in oklch, var(--primary) 30%, transparent)
+      transparent;
     scroll-behavior: smooth;
+  }
+
+  /* Animations */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(5px);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.8s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.8s ease-out forwards;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.8s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 2s ease-in-out infinite;
   }
 }

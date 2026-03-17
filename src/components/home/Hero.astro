@@ -1,0 +1,74 @@
+---
+import { CustomButton } from "@/components/ui-custom/Button"
+import { ChevronDown } from "lucide-react"
+---
+
+<section
+  class="relative flex min-h-[80vh] flex-col items-center justify-start overflow-hidden pt-28 md:min-h-screen md:justify-center md:pt-20"
+>
+  <!-- Background Image Container -->
+  <div class="absolute inset-0 z-0">
+    <div
+      class="absolute inset-0 scale-110 bg-cover bg-center bg-no-repeat opacity-80 blur-[25px] brightness-110 contrast-125"
+      style='background-image: url("/images/minecraft_theend.png")'
+    >
+    </div>
+    <!-- Overlay for depth and transition -->
+    <div
+      class="absolute inset-0 bg-radial-[at_50%_40%] from-transparent via-background/40 to-background/90"
+    >
+    </div>
+    <div
+      class="absolute inset-0 bg-linear-to-b from-transparent via-background/20 to-background"
+    >
+    </div>
+  </div>
+
+  <div class="relative z-10 container px-6 text-center">
+    <h1
+      class="animate-slide-up mb-4 font-minecraft text-5xl leading-none tracking-tight opacity-0 delay-100 md:text-8xl"
+    >
+      MINECRAFT
+      <span class="relative mt-2 block text-primary">SPEEDRUNNING</span>
+    </h1>
+
+    <div class="animate-slide-up mb-12 opacity-0 delay-200">
+      <span
+        class="font-minecraft text-3xl tracking-widest text-muted-foreground/80 uppercase md:text-5xl"
+      >
+        Community Leagues
+      </span>
+      <p class="mt-2 text-muted-foreground">
+        This is not a final product in the slightest. Please be patient.
+      </p>
+    </div>
+
+    <div
+      class="animate-slide-up flex flex-col items-center justify-center gap-4 opacity-0 delay-300 sm:flex-row"
+    >
+      <CustomButton
+        size="lg"
+        className="h-14 px-12 text-lg"
+        href="https://discord.gg/zzptZsec42"
+        target="_self"
+      >
+        Join Now
+      </CustomButton>
+      <CustomButton variant="outline" size="lg" className="h-14 px-6">
+        Learn More
+      </CustomButton>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div
+    class="animate-fade-in pointer-events-none absolute bottom-10 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-2 opacity-0 delay-500 sm:flex"
+  >
+    <span
+      class="flex flex-col items-center gap-2 font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase"
+    >
+      Learn More
+      <ChevronDown className="h-6 w-6 text-primary" />
+    </span>
+  </div>
+</section>

@@ -76,7 +76,7 @@ export function StandingsTable({
             <TableCell
               className={cn(
                 "text-right tabular-nums",
-                "text-neutral-500", // coal   (default / < 500)
+                "text-neutral-500", // coal
                 row.elo >= 500 && "text-neutral-200", // iron
                 row.elo >= 900 && "text-yellow-500", // gold
                 row.elo >= 1200 && "text-emerald-500", // emerald

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
-import { motion } from "framer-motion"
 import { CustomButton } from "@/components/ui-custom/Button"
 import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
@@ -60,27 +59,23 @@ function LeaderboardContent() {
   return (
     <section className="container mx-auto px-6 pt-28 pb-24">
       {/* Page Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-10"
-      >
+      <div className="mb-10">
         <h1 className="font-minecraft text-4xl tracking-tight uppercase md:text-6xl">
           Leaderboard
         </h1>
         <p className="mt-2 text-muted-foreground">
           Browse leagues, view standings, and explore player stats.
         </p>
-      </motion.div>
+        <p className="mt-2 text-muted-foreground">
+          (This is meant for development/testing the database. There will be
+          bugs, missing data, and weird edge cases. This view will be removed
+          entirely and merged with the weekly leaderboards as soon as I get all
+          the data for the first two weeks.)
+        </p>
+      </div>
 
       {/* League Tabs + Actions */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
-      >
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <LeagueSelector
           leagues={leagues}
           selectedLeagueId={selectedLeagueId}
@@ -98,20 +93,16 @@ function LeaderboardContent() {
             </CustomButton>
           </a>
         )}
-      </motion.div>
+      </div>
 
       {/* Standings Table */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
-      >
+      <div>
         <StandingsTable
           standings={standings}
           selectedPlayerId={selectedPlayerId}
           onPlayerClick={handlePlayerClick}
         />
-      </motion.div>
+      </div>
 
       {/* Player Stats Panel */}
       <PlayerStatsPanel
