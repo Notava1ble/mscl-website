@@ -1,15 +1,14 @@
 ---
-import "@/styles/global.css"
-import Navbar from "@/components/layout/Navbar.astro"
+import "@/global.css"
+import Navbar from "@/layouts/Navbar.astro"
 import { SITE_TITLE, SITE_DESCRIPTION } from "@/consts"
 
 interface Props {
   title?: string
   description?: string
-  image?: ImageMetadata
 }
 
-const { title, description, image } = Astro.props
+const { title, description,  } = Astro.props
 ---
 
 <html lang="en">
