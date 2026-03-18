@@ -85,6 +85,12 @@ function MovementBadge({ movement }: { movement: string }) {
           ↓ Relegated
         </Badge>
       )
+    case "stayed":
+      return (
+        <Badge className="border-neutral-500/20 bg-neutral-500/10 px-1.5 py-0 text-[10px] text-neutral-400">
+          → Stayed
+        </Badge>
+      )
     case "new":
       return (
         <Badge
@@ -261,10 +267,6 @@ export function PlayerStatsPanel({
                         </div>
                       </div>
 
-                      {week.times && week.times.length > 0 && (
-                        <MatchTimesChart times={week.times} />
-                      )}
-
                       {week.matchDetails && week.matchDetails.length > 0 && (
                         <div className="border-t border-primary/10 px-3 pt-1.5 pb-3">
                           <span className="mb-1.5 block text-[9px] tracking-wider text-muted-foreground uppercase">
@@ -304,61 +306,6 @@ export function PlayerStatsPanel({
         )}
       </SheetContent>
     </Sheet>
-  )
-}
-
-function MatchTimesChart({ times }: { times: number[] }) {
-  const sorted = [...times]
-    .map((t, originalIndex) => ({ t, originalIndex }))
-    .sort((a, b) => a.t - b.t)
-
-  const best = sorted[0].t
-  const worst = sorted[sorted.length - 1].t
-  const range = worst - best || 1 // guard against equal times
-
-  return (
-    <div className="border-t border-primary/10 px-3 pt-0.5 pb-3">
-      <span className="mb-2 block text-[9px] tracking-wider text-muted-foreground uppercase">
-        Match Times
-      </span>
-      <div className="flex flex-col gap-1.5">
-        {sorted.map(({ t }, rank) => {
-          const isBest = rank === 0
-          const fillPct = 100 - ((t - best) / range) * 90
-
-          return (
-            <div key={rank} className="flex items-center gap-2">
-              <span
-                className={cn(
-                  "w-4 shrink-0 text-right text-[10px] tabular-nums",
-                  isBest ? "text-emerald-400" : "text-muted-foreground/35"
-                )}
-              >
-                {rank + 1}
-              </span>
-
-              <div className="relative h-5 flex-1 overflow-hidden rounded-sm bg-primary/5">
-                <div
-                  className={cn(
-                    "absolute inset-y-0 left-0 rounded-sm",
-                    isBest ? "bg-emerald-500/20" : "bg-primary/10"
-                  )}
-                  style={{ width: `${fillPct}%` }}
-                />
-                <span
-                  className={cn(
-                    "absolute inset-0 flex items-center px-2 font-minecraft text-[10px] tracking-wide tabular-nums",
-                    isBest ? "text-emerald-400" : "text-muted-foreground"
-                  )}
-                >
-                  {formatTime(t)}
-                </span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
   )
 }
 
