@@ -70,6 +70,7 @@ async function run() {
       const matchData = {
         weekNumber: WEEK_NUMBER,
         matchNumber: match.matchNumber,
+        rankedMatchId: match.matchId,
         leagueTier,
         results: match.results,
       }
