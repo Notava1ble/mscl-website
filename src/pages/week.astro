@@ -1,0 +1,11 @@
+---
+import Layout from "@/layouts/main.astro"
+import { WeekPage } from "@/components/week/WeekPage"
+---
+
+<Layout
+  title="MSCL Week"
+  description="View the weekly outcomes, matches, and placements for the MSCL leagues."
+>
+  <WeekPage client:load />
+</Layout>
