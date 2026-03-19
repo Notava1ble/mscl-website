@@ -50,7 +50,6 @@ export const WeekTransitionSchema = z.object({
   newWeek: z
     .int("newWeek must be an integer.")
     .min(1, "newWeek must be at least 1."),
-  overwrite: z.boolean("overwrite must be a boolean.").default(false),
   players: z.array(
     z.object({
       name: z
