@@ -43,7 +43,7 @@ export const createOrUpdatePlayers = internalMutation({
         } else {
           // Auto-create league if it doesn't exist
           leagueId = await ctx.db.insert("leagues", {
-            name: `Tier ${p.leagueTier}`,
+            name: `League ${p.leagueTier}`,
             tierLevel: p.leagueTier,
           })
         }

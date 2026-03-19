@@ -28,6 +28,7 @@ export default defineSchema({
     weekId: v.id("weeks"),
     leagueId: v.id("leagues"),
     matchNumber: v.number(),
+    rankedMatchId: v.string(),
   })
     .index("by_week_and_league", ["weekId", "leagueId"])
     .index("by_week_league_match", ["weekId", "leagueId", "matchNumber"]),
