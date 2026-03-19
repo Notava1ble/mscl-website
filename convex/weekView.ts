@@ -64,8 +64,9 @@ export const getWeekStandings = query({
       // return from weeklyStandings table
       const standings = await ctx.db
         .query("weeklyStandings")
-        .withIndex("by_week", (q) => q.eq("weekId", args.weekId))
-        .filter((q) => q.eq(q.field("leagueId"), args.leagueId))
+        .withIndex("by_week_and_league", (q) =>
+          q.eq("weekId", args.weekId).eq("leagueId", args.leagueId)
+        )
         .collect()
 
       const populated = await Promise.all(
@@ -144,7 +145,7 @@ export const getPlayerWeekPlacements = query({
     // Get all matches for this week
     const matches = await ctx.db
       .query("matches")
-      .filter((q) => q.eq(q.field("weekId"), args.weekId))
+      .withIndex("by_week_and_league", (q) => q.eq("weekId", args.weekId))
       .collect()
 
     const matchIds = new Set(matches.map((m) => m._id))

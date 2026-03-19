@@ -42,11 +42,13 @@ export function StandingsTable({
         const isSelected = selectedPlayerId === row.playerId
 
         return (
-          <div
+          <button
+            type="button"
             key={row.playerId}
             onClick={() => onPlayerClick(row.playerId)}
+            aria-pressed={isSelected}
             className={cn(
-              "flex cursor-pointer items-center justify-between rounded-xl px-4 py-2 transition-colors hover:bg-muted/50",
+              "flex w-full items-center justify-between rounded-xl px-4 py-2 text-left transition-colors hover:bg-muted/50",
               isSelected && "border border-border bg-muted/50"
             )}
           >
@@ -76,7 +78,7 @@ export function StandingsTable({
                 {row.totalPoints} pts
               </span>
             </div>
-          </div>
+          </button>
         )
       })}
     </div>

@@ -38,7 +38,7 @@ The schema lives in `convex/schema.ts`. Below is the simplified schema:
   - `elo: number`
   - `currentLeagueId: Id<"leagues">`
 - `leagues`
-  - `name: string` _(e.g. "Tier 1")_
+  - `name: string` _(e.g. "League 1")_
   - `tierLevel: number` _(1 = highest, 6 = lowest)_
 - `weeks`
   - `weekNumber: number` _(1, 2, 3, …)_
@@ -152,7 +152,7 @@ Upserts a single match and its per‑player results. Re‑posting the same `(wee
 - For each result:
   - Validates that `placement` is a positive integer and unique within the match.
   - Ensures that the `playerName` already exists in the database (creates one with `elo=0` if not).
-  - Inserts a `matchResults` row recording `pointsWon`, `timeMs`, `rankedMatchId`, and `placement`.
+  - Inserts a `matchResults` row recording `pointsWon`, `timeMs`, and `placement`.
 
 **Response:**
 
@@ -175,7 +175,6 @@ Finalizes the week by computing standings, promotions, and relegations based on 
 {
   "weekNumber": 1,         // The week being finalized
   "newWeek": 2,            // The week number that will become current
-  "overwrite": false,      // (Optional) Whether to replace existing standings
   "players":[             // Declarative “next state” for all players
     {
       "name": "string",
@@ -189,8 +188,6 @@ Finalizes the week by computing standings, promotions, and relegations based on 
 **Behavior:**
 
 1. **Week Initialization:** Ensures a `weeks` record exists for `weekNumber`.
-   - If `weeklyStandings` already exist for that week and `overwrite` is `false`, it aborts with a `409 Conflict`.
-   - If `overwrite` is `true`, it deletes existing standings for that week, replacing them with new ones.
 2. **Player Movement:** For each player in `players`:
    - Ensures a `leagues` row exists for the provided `leagueTier`.
    - Looks up the existing player by `name` (creates if missing).

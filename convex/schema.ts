@@ -59,6 +59,7 @@ export default defineSchema({
     ),
   })
     .index("by_week_and_player", ["weekId", "playerId"])
+    .index("by_week_and_league", ["weekId", "leagueId"])
     .index("by_week", ["weekId"])
     .index("by_player", ["playerId"])
     .index("by_week_number", ["weekNumber"])
