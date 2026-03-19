@@ -27,7 +27,9 @@ export const MatchSchema = z.object({
     .int("leagueTier must be an integer.")
     .min(1, "leagueTier must be at least 1.")
     .max(6, "leagueTier must be at most 6."),
-  rankedMatchId: z.string("rankedMatchId must be a string."),
+  rankedMatchId: z
+    .string("rankedMatchId must be a string.")
+    .min(1, "rankedMatchId must not be empty."),
   results: z.array(
     z.object({
       playerName: z

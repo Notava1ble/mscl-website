@@ -38,7 +38,7 @@ export const transitionWeek = internalMutation({
       if (existingStandings.length > 0) {
         return {
           success: false,
-          error: `Standings for week ${args.weekNumber} already exist. Pass overwrite=true to replace them.`,
+          error: `Standings for week ${args.weekNumber} already exist.`,
           status: 409,
         }
       }
@@ -195,7 +195,19 @@ export const transitionWeek = internalMutation({
       await ctx.db.patch(cw._id, { isCurrent: false })
     }
 
-    await ctx.db.insert("weeks", { weekNumber: args.newWeek, isCurrent: true })
+    const nextWeek = await ctx.db
+      .query("weeks")
+      .withIndex("by_week_number", (q) => q.eq("weekNumber", args.newWeek))
+      .first()
+
+    if (nextWeek) {
+      await ctx.db.patch(nextWeek._id, { isCurrent: true })
+    } else {
+      await ctx.db.insert("weeks", {
+        weekNumber: args.newWeek,
+        isCurrent: true,
+      })
+    }
 
     return { success: true, count: args.players.length }
   },

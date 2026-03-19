@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
@@ -19,35 +19,37 @@ function WeekContent() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (weeks && weeks.length > 0 && !selectedWeekId) {
-      const current = weeks.find((w) => w.isCurrent)
-      setSelectedWeekId(current ? current._id : weeks[0]._id)
-    }
-  }, [weeks, selectedWeekId])
+  const effectiveSelectedWeekId =
+    (selectedWeekId && weeks?.some((w) => w._id === selectedWeekId)
+      ? selectedWeekId
+      : null) ??
+    weeks?.find((w) => w.isCurrent)?._id ??
+    weeks?.[0]?._id ??
+    null
 
-  useEffect(() => {
-    if (leagues && leagues.length > 0 && !selectedLeagueId) {
-      setSelectedLeagueId(leagues[0]._id)
-    }
-  }, [leagues, selectedLeagueId])
+  const effectiveSelectedLeagueId =
+    (selectedLeagueId && leagues?.some((l) => l._id === selectedLeagueId)
+      ? selectedLeagueId
+      : null) ??
+    leagues?.[0]?._id ??
+    null
 
   const standings = useQuery(
     api.weekView.getWeekStandings,
-    selectedWeekId && selectedLeagueId
+    effectiveSelectedWeekId && effectiveSelectedLeagueId
       ? {
-          weekId: selectedWeekId as Id<"weeks">,
-          leagueId: selectedLeagueId as Id<"leagues">,
+          weekId: effectiveSelectedWeekId as Id<"weeks">,
+          leagueId: effectiveSelectedLeagueId as Id<"leagues">,
         }
       : "skip"
   )
 
   const matches = useQuery(
     api.weekView.getWeekMatches,
-    selectedWeekId && selectedLeagueId
+    effectiveSelectedWeekId && effectiveSelectedLeagueId
       ? {
-          weekId: selectedWeekId as Id<"weeks">,
-          leagueId: selectedLeagueId as Id<"leagues">,
+          weekId: effectiveSelectedWeekId as Id<"weeks">,
+          leagueId: effectiveSelectedLeagueId as Id<"leagues">,
         }
       : "skip"
   )
@@ -86,25 +88,25 @@ function WeekContent() {
 
   return (
     <div className="min-h-screen bg-background pt-28 pb-24 font-sans text-foreground">
-      <div className="container mx-auto max-w-[1400px] px-4 md:px-8">
+      <div className="container mx-auto max-w-350 px-4 md:px-8">
         {/* Header section */}
         <div className="mb-4 flex justify-between pb-2">
           <h1 className="text-4xl font-bold">Weekly Leaderboards</h1>
           <WeekSelector
             weeks={weeks}
-            selectedWeekId={selectedWeekId}
+            selectedWeekId={effectiveSelectedWeekId}
             onSelect={onWeekChange}
           />
         </div>
 
         <LeagueSelector
           leagues={leagues}
-          selectedLeagueId={selectedLeagueId}
+          selectedLeagueId={effectiveSelectedLeagueId}
           onSelect={onLeagueChange}
         />
 
         {/* Wrap everything in a flex row */}
-        <div className="mt-4 flex min-h-[600px] items-start gap-8 pt-2 pb-12 lg:gap-16">
+        <div className="mt-4 flex min-h-150 items-start gap-8 pt-2 pb-12 lg:gap-16">
           {/* Scrollable columns */}
           <div className="flex flex-row items-start gap-8 overflow-x-auto lg:gap-16">
             {/* Standings */}
@@ -117,7 +119,7 @@ function WeekContent() {
             </div>
 
             {/* Matches */}
-            <div className="flex w-[300px] shrink-0 flex-col gap-2">
+            <div className="flex w-75 shrink-0 flex-col gap-2">
               <MatchesList
                 matches={matches}
                 selectedMatchId={selectedMatchId}
@@ -127,9 +129,9 @@ function WeekContent() {
           </div>
 
           {/* Details Panel */}
-          <div className="sticky top-24 w-[500px] shrink-0 lg:flex-1">
+          <div className="sticky top-24 w-125 shrink-0 lg:flex-1">
             <DetailsPanel
-              weekId={selectedWeekId}
+              weekId={effectiveSelectedWeekId}
               playerId={selectedPlayerId}
               matchId={selectedMatchId}
               playerStats={

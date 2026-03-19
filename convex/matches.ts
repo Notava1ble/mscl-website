@@ -63,6 +63,9 @@ export const ingestMatch = internalMutation({
 
     // Delete existing match results for this match if it exists so we can insert the new ones
     if (match) {
+      if (match.rankedMatchId !== args.rankedMatchId) {
+        await ctx.db.patch(match._id, { rankedMatchId: args.rankedMatchId })
+      }
       const existingResults = await ctx.db
         .query("matchResults")
         .withIndex("by_match", (q) => q.eq("matchId", match!._id))
