@@ -110,7 +110,6 @@ http.route({
       const result = (await ctx.runMutation(internal.weeks.transitionWeek, {
         weekNumber: transitionData.weekNumber,
         newWeek: transitionData.newWeek,
-        overwrite: transitionData.overwrite,
         players: transitionData.players,
       })) as {
         success: boolean

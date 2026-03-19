@@ -1,3 +1,1 @@
-- [x] Change the schema so match results have placements
-- [x] Update the playerStats to show the placement in each match
-- [x] Update the match API to fill placements
+- [ ] ignore players who aren't registered for the current week
