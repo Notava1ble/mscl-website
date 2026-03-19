@@ -164,6 +164,7 @@ export const transitionWeek = internalMutation({
       })
 
       // Insert weeklyStandings — leagueId/leagueNumber reflect the league they competed in
+      let placement = 1
       for (let i = 0; i < sorted.length; i++) {
         const { playerId, movement } = sorted[i]
         const totalPoints = pointsMap.get(playerId) ?? 0
@@ -177,9 +178,10 @@ export const transitionWeek = internalMutation({
           leagueNumber: oldTier,
           playerId,
           totalPoints: pointsMap.get(playerId) ?? 0,
-          finalPlacement: i + 1,
+          finalPlacement: placement,
           movement,
         })
+        placement++
       }
     }
 
