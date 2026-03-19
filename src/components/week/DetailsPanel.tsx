@@ -2,21 +2,29 @@ import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 export function DetailsPanel({
   weekId,
   playerId,
   matchId,
   playerStats,
+  showBorder = true,
 }: {
   weekId: string | null
   playerId: string | null
   matchId: string | null
   playerStats: { name: string; totalPoints: number; rank: number } | null
+  showBorder?: boolean
 }) {
   if (playerId && weekId && playerStats) {
     return (
-      <div className="rounded-3xl border border-border bg-muted/10 p-6 lg:p-8">
+      <div
+        className={cn(
+          "bg-muted/10 p-6 lg:p-8",
+          showBorder && "rounded-3xl border border-border"
+        )}
+      >
         <PlayerDetails
           weekId={weekId as Id<"weeks">}
           playerId={playerId as Id<"players">}
@@ -28,7 +36,12 @@ export function DetailsPanel({
 
   if (matchId) {
     return (
-      <div className="flex min-h-[300px] flex-col items-center justify-center rounded-3xl bg-muted/10 p-6">
+      <div
+        className={cn(
+          "flex min-h-[300px] flex-col items-center justify-center bg-muted/10 p-6",
+          showBorder && "rounded-3xl border border-border"
+        )}
+      >
         <p className="font-minecraft text-sm text-muted-foreground">
           Comming soon...
         </p>
@@ -101,7 +114,7 @@ function PlayerDetails({
 
           return (
             <div key={p.matchId} className="flex flex-row items-center">
-              <span className="w-32 text-sm text-muted-foreground capitalize">
+              <span className="w-32 text-sm text-muted-foreground capitalize max-md:w-20">
                 Match {p.matchNumber}
               </span>
               <span

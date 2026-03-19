@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
@@ -8,8 +8,17 @@ import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
 import { MatchesList } from "./MatchesList"
 import { DetailsPanel } from "./DetailsPanel"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
 
 function WeekContent() {
+  const isMobile = useIsMobile()
   const weeks = useQuery(api.weekView.getAllWeeks)
   const leagues = useQuery(api.leagues.listLeagues)
 
@@ -18,6 +27,7 @@ function WeekContent() {
 
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   const effectiveSelectedWeekId =
     (selectedWeekId && weeks?.some((w) => w._id === selectedWeekId)
@@ -57,18 +67,22 @@ function WeekContent() {
   function handlePlayerClick(playerId: string) {
     if (selectedPlayerId === playerId) {
       setSelectedPlayerId(null)
+      if (isMobile) setIsDrawerOpen(false)
     } else {
       setSelectedPlayerId(playerId)
       setSelectedMatchId(null)
+      if (isMobile) setIsDrawerOpen(true)
     }
   }
 
   function handleMatchClick(matchId: string) {
     if (selectedMatchId === matchId) {
       setSelectedMatchId(null)
+      if (isMobile) setIsDrawerOpen(false)
     } else {
       setSelectedMatchId(matchId)
       setSelectedPlayerId(null)
+      if (isMobile) setIsDrawerOpen(true)
     }
   }
 
@@ -76,22 +90,39 @@ function WeekContent() {
     setSelectedWeekId(id)
     setSelectedPlayerId(null)
     setSelectedMatchId(null)
+    setIsDrawerOpen(false)
   }
 
   function onLeagueChange(id: string) {
     setSelectedLeagueId(id)
     setSelectedPlayerId(null)
     setSelectedMatchId(null)
+    setIsDrawerOpen(false)
   }
 
   const selectedPlayer = standings?.find((s) => s.playerId === selectedPlayerId)
 
+  const detailsPanelProps = {
+    weekId: effectiveSelectedWeekId,
+    playerId: selectedPlayerId,
+    matchId: selectedMatchId,
+    playerStats: selectedPlayer
+      ? {
+          name: selectedPlayer.name,
+          totalPoints: selectedPlayer.totalPoints,
+          rank: selectedPlayer.rank,
+        }
+      : null,
+  }
+
   return (
-    <div className="min-h-screen bg-background pt-28 pb-24 font-sans text-foreground">
-      <div className="container mx-auto max-w-350 px-4 md:px-8">
+    <div className="min-h-screen bg-background pt-20 pb-24 font-sans text-foreground md:pt-28">
+      <div className="container mx-auto max-w-7xl px-4 md:px-8">
         {/* Header section */}
-        <div className="mb-4 flex justify-between pb-2">
-          <h1 className="text-4xl font-bold">Weekly Leaderboards</h1>
+        <div className="mb-4 flex flex-col justify-between gap-4 border-b border-border/40 pb-4 md:flex-row md:items-center">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            Weekly Leaderboards
+          </h1>
           <WeekSelector
             weeks={weeks}
             selectedWeekId={effectiveSelectedWeekId}
@@ -99,53 +130,86 @@ function WeekContent() {
           />
         </div>
 
-        <LeagueSelector
-          leagues={leagues}
-          selectedLeagueId={effectiveSelectedLeagueId}
-          onSelect={onLeagueChange}
-        />
-
-        {/* Wrap everything in a flex row */}
-        <div className="mt-4 flex min-h-150 items-start gap-8 pt-2 pb-12 lg:gap-16">
-          {/* Scrollable columns */}
-          <div className="flex flex-row items-start gap-8 overflow-x-auto lg:gap-16">
-            {/* Standings */}
-            <div className="flex w-[320px] shrink-0 flex-col gap-4">
-              <StandingsTable
-                standings={standings}
-                selectedPlayerId={selectedPlayerId}
-                onPlayerClick={handlePlayerClick}
-              />
-            </div>
-
-            {/* Matches */}
-            <div className="flex w-75 shrink-0 flex-col gap-2">
-              <MatchesList
-                matches={matches}
-                selectedMatchId={selectedMatchId}
-                onMatchClick={handleMatchClick}
-              />
-            </div>
-          </div>
-
-          {/* Details Panel */}
-          <div className="sticky top-24 w-125 shrink-0 lg:flex-1">
-            <DetailsPanel
-              weekId={effectiveSelectedWeekId}
-              playerId={selectedPlayerId}
-              matchId={selectedMatchId}
-              playerStats={
-                selectedPlayer
-                  ? {
-                      name: selectedPlayer.name,
-                      totalPoints: selectedPlayer.totalPoints,
-                      rank: selectedPlayer.rank,
-                    }
-                  : null
-              }
-            />
-          </div>
+        <div className="mb-8">
+          <LeagueSelector
+            leagues={leagues}
+            selectedLeagueId={effectiveSelectedLeagueId}
+            onSelect={onLeagueChange}
+            isMobile={isMobile}
+          />
         </div>
+
+        {isMobile ? (
+          <div className="mt-4 flex flex-col gap-6">
+            <Tabs defaultValue="standings" className="w-full">
+              <TabsList className="mb-4 w-full justify-start rounded-none border-b bg-transparent p-0">
+                <TabsTrigger
+                  value="standings"
+                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  Standings
+                </TabsTrigger>
+                <TabsTrigger
+                  value="matches"
+                  className="rounded-none border-b-2 border-transparent px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                >
+                  Matches
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="standings" className="mt-0">
+                <StandingsTable
+                  standings={standings}
+                  selectedPlayerId={selectedPlayerId}
+                  onPlayerClick={handlePlayerClick}
+                />
+              </TabsContent>
+              <TabsContent value="matches" className="mt-0">
+                <MatchesList
+                  matches={matches}
+                  selectedMatchId={selectedMatchId}
+                  onMatchClick={handleMatchClick}
+                />
+              </TabsContent>
+            </Tabs>
+
+            <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+              <DrawerContent>
+                <DrawerHeader className="border-b border-border/40 px-6 pb-4">
+                  <DrawerTitle className="font-minecraft text-xl">
+                    {selectedPlayerId ? "Player Details" : "Match Details"}
+                  </DrawerTitle>
+                </DrawerHeader>
+                <div className="px-6 py-4 pb-12">
+                  <DetailsPanel {...detailsPanelProps} showBorder={false} />
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </div>
+        ) : (
+          <div className="mt-4 flex min-h-[600px] items-start gap-8 lg:gap-16">
+            <div className="flex flex-1 flex-row items-start gap-8 lg:gap-16">
+              <div className="flex w-[320px] shrink-0 flex-col gap-4">
+                <StandingsTable
+                  standings={standings}
+                  selectedPlayerId={selectedPlayerId}
+                  onPlayerClick={handlePlayerClick}
+                />
+              </div>
+
+              <div className="flex w-75 shrink-0 flex-col gap-2">
+                <MatchesList
+                  matches={matches}
+                  selectedMatchId={selectedMatchId}
+                  onMatchClick={handleMatchClick}
+                />
+              </div>
+            </div>
+
+            <div className="sticky top-24 w-125 shrink-0">
+              <DetailsPanel {...detailsPanelProps} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
