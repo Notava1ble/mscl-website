@@ -172,6 +172,10 @@ export const transitionWeek = internalMutation({
       // Insert weeklyStandings — leagueId/leagueNumber reflect the league they competed in
       for (let i = 0; i < sorted.length; i++) {
         const { playerId, movement } = sorted[i]
+        const totalPoints = pointsMap.get(playerId) ?? 0
+
+        // Skip players who didn't participate in any matches
+        if (totalPoints === 0 && !pointsMap.has(playerId)) continue
         await ctx.db.insert("weeklyStandings", {
           weekId: week!._id,
           weekNumber: args.weekNumber,
