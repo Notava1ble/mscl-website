@@ -14,7 +14,6 @@ export const transitionWeek = internalMutation({
   args: {
     weekNumber: v.number(),
     newWeek: v.number(),
-    overwrite: v.boolean(),
     players: v.array(
       v.object({
         name: v.string(),
@@ -37,15 +36,10 @@ export const transitionWeek = internalMutation({
         .collect()
 
       if (existingStandings.length > 0) {
-        if (!args.overwrite) {
-          return {
-            success: false,
-            error: `Standings for week ${args.weekNumber} already exist. Pass overwrite=true to replace them.`,
-            status: 409,
-          }
-        }
-        for (const st of existingStandings) {
-          await ctx.db.delete(st._id)
+        return {
+          success: false,
+          error: `Standings for week ${args.weekNumber} already exist. Pass overwrite=true to replace them.`,
+          status: 409,
         }
       }
     } else {
