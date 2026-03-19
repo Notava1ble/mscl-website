@@ -46,6 +46,7 @@ The schema lives in `convex/schema.ts`. Below is the simplified schema:
 - `matches`
   - `weekId: Id<"weeks">`
   - `leagueId: Id<"leagues">`
+  - `rankedMatchId: string` _(The ID of the match on the MSCR ranked api)_
   - `matchNumber: number`
 - `matchResults`
   - `matchId: Id<"matches">`
@@ -129,6 +130,7 @@ Upserts a single match and its per‑player results. Re‑posting the same `(wee
   "weekNumber": 1,      // Integer >= 1
   "matchNumber": 1,     // Integer >= 1
   "leagueTier": 1,      // Accepts 1 through 6
+  "rankedMatchId": "string", // The ID of the match on the MSCR ranked api
   "results":[
     {
       "playerName": "string",
@@ -150,7 +152,7 @@ Upserts a single match and its per‑player results. Re‑posting the same `(wee
 - For each result:
   - Validates that `placement` is a positive integer and unique within the match.
   - Ensures that the `playerName` already exists in the database (creates one with `elo=0` if not).
-  - Inserts a `matchResults` row recording `pointsWon`, `timeMs`, and `placement`.
+  - Inserts a `matchResults` row recording `pointsWon`, `timeMs`, `rankedMatchId`, and `placement`.
 
 **Response:**
 

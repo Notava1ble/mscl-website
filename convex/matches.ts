@@ -7,6 +7,7 @@ export const ingestMatch = internalMutation({
     matchNumber: v.number(),
     weekNumber: v.number(),
     leagueTier: v.number(),
+    rankedMatchId: v.string(),
     results: v.array(
       v.object({
         playerName: v.string(),
@@ -42,7 +43,7 @@ export const ingestMatch = internalMutation({
     // Autocreate league if it doesnt exist
     if (!league) {
       const leagueId = await ctx.db.insert("leagues", {
-        name: `Tier ${args.leagueTier}`,
+        name: `League ${args.leagueTier}`,
         tierLevel: args.leagueTier,
       })
       league = await ctx.db.get(leagueId)
@@ -74,6 +75,7 @@ export const ingestMatch = internalMutation({
       const matchId = await ctx.db.insert("matches", {
         weekId: targetWeek._id,
         leagueId: league._id,
+        rankedMatchId: args.rankedMatchId,
         matchNumber: args.matchNumber,
       })
       match = await ctx.db.get(matchId)

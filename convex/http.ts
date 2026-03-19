@@ -74,6 +74,7 @@ http.route({
         weekNumber: matchData.weekNumber,
         matchNumber: matchData.matchNumber,
         leagueTier: matchData.leagueTier,
+        rankedMatchId: matchData.rankedMatchId,
         results: matchData.results,
       })
 
