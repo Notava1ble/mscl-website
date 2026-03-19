@@ -16,6 +16,7 @@ import type * as lib_validators from "../lib/validators.js";
 import type * as matches from "../matches.js";
 import type * as playerStats from "../playerStats.js";
 import type * as players from "../players.js";
+import type * as weekView from "../weekView.js";
 import type * as weeks from "../weeks.js";
 
 import type {
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   matches: typeof matches;
   playerStats: typeof playerStats;
   players: typeof players;
+  weekView: typeof weekView;
   weeks: typeof weeks;
 }>;
 
