@@ -103,28 +103,31 @@ function WeekContent() {
           onSelect={onLeagueChange}
         />
 
-        {/* 3-Column Horizontal Layout matching the image */}
-        <div className="scrollbar-thin scrollbar-thumb-muted-foreground/20 mt-4 flex min-h-[600px] flex-row items-start gap-8 overflow-x-auto pt-2 pb-12 lg:gap-16">
-          {/* Column 1: League Tabs + Standings */}
-          <div className="flex w-[320px] shrink-0 flex-col gap-4">
-            <StandingsTable
-              standings={standings}
-              selectedPlayerId={selectedPlayerId}
-              onPlayerClick={handlePlayerClick}
-            />
+        {/* Wrap everything in a flex row */}
+        <div className="mt-4 flex min-h-[600px] items-start gap-8 pt-2 pb-12 lg:gap-16">
+          {/* Scrollable columns */}
+          <div className="flex flex-row items-start gap-8 overflow-x-auto lg:gap-16">
+            {/* Standings */}
+            <div className="flex w-[320px] shrink-0 flex-col gap-4">
+              <StandingsTable
+                standings={standings}
+                selectedPlayerId={selectedPlayerId}
+                onPlayerClick={handlePlayerClick}
+              />
+            </div>
+
+            {/* Matches */}
+            <div className="flex w-[300px] shrink-0 flex-col gap-2">
+              <MatchesList
+                matches={matches}
+                selectedMatchId={selectedMatchId}
+                onMatchClick={handleMatchClick}
+              />
+            </div>
           </div>
 
-          {/* Column 2: Matches List */}
-          <div className="flex w-[300px] shrink-0 flex-col gap-2">
-            <MatchesList
-              matches={matches}
-              selectedMatchId={selectedMatchId}
-              onMatchClick={handleMatchClick}
-            />
-          </div>
-
-          {/* Column 3: Details Panel */}
-          <div className="w-[500px] shrink-0 lg:flex-1">
+          {/* Details Panel */}
+          <div className="sticky top-24 w-[500px] shrink-0 lg:flex-1">
             <DetailsPanel
               weekId={selectedWeekId}
               playerId={selectedPlayerId}
