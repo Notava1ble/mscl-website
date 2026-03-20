@@ -27,51 +27,64 @@ import { ChevronDown } from "lucide-react"
     </div>
   </div>
 
-  <div class="relative z-10 container px-6 text-center">
-    <h1
-      class="animate-slide-up mb-4 font-minecraft text-4xl leading-none font-bold tracking-tight opacity-0 delay-100 sm:text-5xl md:text-6xl lg:text-8xl"
-    >
-      MINECRAFT
-      <span class="relative mt-2 block text-primary">SPEEDRUNNING</span>
-    </h1>
-    <div class="animate-slide-up mb-12 opacity-0 delay-200">
-      <span
-        class="font-minecraft text-2xl font-bold tracking-widest text-muted-foreground/80 uppercase sm:text-3xl md:text-4xl lg:text-5xl"
+  <div
+    class="relative z-10 container flex flex-col items-center px-6 text-center"
+  >
+    <div class="flex flex-col items-center gap-4">
+      <p
+        class="font-minecraft text-sm font-semibold tracking-[0.2em] text-muted-foreground/70 uppercase sm:text-base md:text-lg"
       >
-        Community Leagues
-      </span>
-      <p class="mt-2 text-sm text-muted-foreground md:text-base">
-        This is not a final product in the slightest. Please be patient.
+        Minecraft Speedrunning
       </p>
+
+      <h1
+        class="animate-slide-up flex flex-wrap justify-center gap-x-4 font-minecraft text-5xl leading-none font-bold tracking-tight opacity-0 delay-100 sm:text-6xl md:text-7xl lg:text-8xl"
+      >
+        <span class="text-foreground/90">Ranked</span>
+        <span class="text-primary drop-shadow-md">Leagues</span>
+      </h1>
+
+      <div class="animate-slide-up opacity-0 delay-200">
+        <p
+          class="max-w-xl font-sans text-sm font-medium text-muted-foreground/80 md:text-base"
+        >
+          This is not a final product in the slightest. Please be patient.
+        </p>
+      </div>
     </div>
+
     <div
-      class="animate-slide-up flex flex-col items-center justify-center gap-4 opacity-0 delay-300 sm:flex-row"
+      class="animate-slide-up mt-10 flex w-full flex-col items-center justify-center gap-4 opacity-0 delay-300 sm:w-auto sm:flex-row"
     >
       <CustomButton
         size="lg"
-        className="h-14 px-12 text-lg"
+        className="h-14 w-full px-12 text-lg shadow-lg shadow-primary/20 sm:w-auto"
         href="https://discord.gg/zzptZsec42"
         target="_self"
       >
         Join Now
       </CustomButton>
-      <CustomButton variant="outline" size="lg" className="h-14 px-6">
+
+      <CustomButton
+        variant="secondary"
+        size="lg"
+        className="h-14 w-full border border-border/50 bg-secondary/50 px-8 backdrop-blur-sm hover:bg-secondary/80 sm:w-auto"
+      >
         Learn More
       </CustomButton>
     </div>
   </div>
 
-  <!-- Scroll indicator -->
   <div
     id="scroll-indicator"
     class="pointer-events-none absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 transition-opacity duration-300 max-sm:hidden"
     style="opacity: 0"
   >
     <span
-      class="flex flex-col items-center gap-2 font-minecraft text-xs tracking-widest text-muted-foreground/60 uppercase"
+      class="flex flex-col items-center gap-2 font-minecraft text-xs tracking-[0.2em] text-muted-foreground/60 uppercase"
     >
       Learn More
-      <ChevronDown className="h-6 w-6 text-primary" />
+      <ChevronDown className="h-6 w-6 animate-bounce text-primary" />
     </span>
   </div>
 </section>
