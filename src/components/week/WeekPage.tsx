@@ -29,6 +29,14 @@ function WeekContent() {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
+  const onDrawerChange = (open: boolean) => {
+    setIsDrawerOpen(open)
+    if (!open) {
+      setSelectedPlayerId(null)
+      setSelectedMatchId(null)
+    }
+  }
+
   const effectiveSelectedWeekId =
     (selectedWeekId && weeks?.some((w) => w._id === selectedWeekId)
       ? selectedWeekId
@@ -172,7 +180,7 @@ function WeekContent() {
               </TabsContent>
             </Tabs>
 
-            <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
+            <Drawer open={isDrawerOpen} onOpenChange={onDrawerChange}>
               <DrawerContent>
                 <DrawerHeader className="border-b border-border/40 px-6 pb-4">
                   <DrawerTitle className="font-minecraft text-xl">
@@ -186,7 +194,7 @@ function WeekContent() {
             </Drawer>
           </div>
         ) : (
-          <div className="mt-4 flex min-h-[600px] items-start gap-8 lg:gap-16">
+          <div className="mt-4 flex min-h-150 items-start gap-8 lg:gap-16">
             <div className="flex flex-1 flex-row items-start gap-8 lg:gap-16">
               <div className="flex w-[320px] shrink-0 flex-col gap-4">
                 <StandingsTable
