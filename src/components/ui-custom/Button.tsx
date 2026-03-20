@@ -12,15 +12,29 @@ export function CustomButton({
   href,
   target = "_self",
   minecraft = true,
+  variant = "default",
   onClick,
+  children,
   ...props
 }: CustomButtonProps) {
-  return (
+  const buttonContent = (
     <BaseButton
+      variant={variant}
       className={cn(
-        "relative overflow-hidden transition-all duration-200 active:scale-95",
-        minecraft && "font-minecraft tracking-wider uppercase",
-        "after:absolute after:inset-0 after:border-b-4 after:border-black/20 hover:after:border-black/10 active:after:border-transparent",
+        // Core animations and transitions
+        "relative overflow-hidden transition-all duration-200 active:translate-y-0.5 active:scale-95",
+
+        // Typography
+        minecraft && "font-minecraft tracking-widest uppercase",
+
+        // Hover animation
+        minecraft && "hover:translate-y-1 hover:scale-95",
+
+        // The 3d minecraft border effect
+        minecraft && "border-b-0 shadow-none", // Reset standard borders
+        "after:absolute after:inset-x-0 after:bottom-0 after:h-1 after:rounded-b-md after:bg-black/30 after:transition-all",
+        "hover:after:bottom-0 hover:after:h-0.5 active:after:h-0",
+
         className
       )}
       onClick={
@@ -35,6 +49,10 @@ export function CustomButton({
           : onClick
       }
       {...props}
-    />
+    >
+      {children}
+    </BaseButton>
   )
+
+  return buttonContent
 }
