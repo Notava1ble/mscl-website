@@ -190,7 +190,7 @@ function WeekContent() {
                     {selectedPlayerId ? "Player Details" : "Match Details"}
                   </DrawerTitle>
                 </DrawerHeader>
-                <div className="px-6 py-4 pb-12">
+                <div className="h-full overflow-y-auto px-6 py-4 pb-12">
                   <DetailsPanel {...detailsPanelProps} showBorder={false} />
                 </div>
               </DrawerContent>
