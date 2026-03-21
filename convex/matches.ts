@@ -1,4 +1,3 @@
-import { mutation } from "./_generated/server"
 import { v } from "convex/values"
 import { internalMutation } from "./_generated/server"
 
@@ -32,7 +31,9 @@ export const ingestMatch = internalMutation({
       })
       targetWeek = await ctx.db.get(weekId)
       if (!targetWeek) {
-        console.error(`[Internal Error] Failed to create week record ${args.weekNumber}`)
+        console.error(
+          `[Internal Error] Failed to create week record ${args.weekNumber}`
+        )
         throw new Error("Failed to create current week")
       }
     }
@@ -51,7 +52,9 @@ export const ingestMatch = internalMutation({
       })
       league = await ctx.db.get(leagueId)
       if (!league) {
-        console.error(`[Internal Error] Failed to create league tier ${args.leagueTier}`)
+        console.error(
+          `[Internal Error] Failed to create league tier ${args.leagueTier}`
+        )
         throw new Error("Failed to create league")
       }
     }
@@ -89,7 +92,9 @@ export const ingestMatch = internalMutation({
       })
       match = await ctx.db.get(matchId)
       if (!match) {
-        console.error(`[Internal Error] Failed to create match entry ${args.matchNumber} in league ${args.leagueTier}`)
+        console.error(
+          `[Internal Error] Failed to create match entry ${args.matchNumber} in league ${args.leagueTier}`
+        )
         throw new Error("Failed to create match")
       }
     }
@@ -98,11 +103,15 @@ export const ingestMatch = internalMutation({
     const seenPlacements = new Set<number>()
     for (const res of args.results) {
       if (seenPlacements.has(res.placement)) {
-        console.error(`[Validation] Duplicate placement ${res.placement} in match results`)
+        console.error(
+          `[Validation] Duplicate placement ${res.placement} in match results`
+        )
         throw new Error("Duplicate placement detected within match results")
       }
       if (!Number.isInteger(res.placement) || res.placement < 1) {
-        console.error(`[Validation] Invalid placement ${res.placement} for ${res.playerName}`)
+        console.error(
+          `[Validation] Invalid placement ${res.placement} for ${res.playerName}`
+        )
         throw new Error("Placement must be a positive integer")
       }
       seenPlacements.add(res.placement)
@@ -121,7 +130,9 @@ export const ingestMatch = internalMutation({
         })
         player = await ctx.db.get(playerId)
         if (!player) {
-          console.error(`[Internal Error] Failed to create player ${res.playerName}`)
+          console.error(
+            `[Internal Error] Failed to create player ${res.playerName}`
+          )
           throw new Error("Failed to create player")
         }
       }

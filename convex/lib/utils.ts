@@ -107,7 +107,7 @@ export async function extractRequestBody<T>(
   if (!parseResult.success) {
     console.error(
       `[Validation] Schema validation failed for request to ${request.url}:`,
-      parseResult.error.format()
+      parseResult.error
     )
     return {
       errorResponse: jsonError("Invalid body payload.", 400, {

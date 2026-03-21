@@ -86,9 +86,7 @@ export const getPlayerStats = query({
         matchId: match._id,
         matchNumber: match.matchNumber,
         placement:
-          typeof (result as any).placement === "number"
-            ? (result as any).placement
-            : null,
+          typeof result.placement === "number" ? result.placement : null,
         pointsWon: result.pointsWon,
         timeMs: result.timeMs,
       })

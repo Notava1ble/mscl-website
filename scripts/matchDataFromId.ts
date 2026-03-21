@@ -125,14 +125,14 @@ function parseResponse(response: MatchAPIResponseType, dnfTime: number) {
   return results
 }
 
-const DNF_TIMES = {
-  league1: 13 * 60 * 1000,
-  league2: 15 * 60 * 1000,
-  league3: 17 * 60 * 1000,
-  league4: 20 * 60 * 1000,
-  league5: 25 * 60 * 1000,
-  league6: 30 * 60 * 1000,
-}
+// const DNF_TIMES = {
+//   league1: 13 * 60 * 1000,
+//   league2: 15 * 60 * 1000,
+//   league3: 17 * 60 * 1000,
+//   league4: 20 * 60 * 1000,
+//   league5: 25 * 60 * 1000,
+//   league6: 30 * 60 * 1000,
+// }
 
 const main = async () => {
   const args = process.argv.slice(2)
