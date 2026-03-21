@@ -31,7 +31,10 @@ export const ingestMatch = internalMutation({
         isCurrent: true,
       })
       targetWeek = await ctx.db.get(weekId)
-      if (!targetWeek) throw new Error("Failed to create current week")
+      if (!targetWeek) {
+        console.error(`[Internal Error] Failed to create week record ${args.weekNumber}`)
+        throw new Error("Failed to create current week")
+      }
     }
 
     // Find league
@@ -47,7 +50,10 @@ export const ingestMatch = internalMutation({
         tierLevel: args.leagueTier,
       })
       league = await ctx.db.get(leagueId)
-      if (!league) throw new Error("Failed to create league")
+      if (!league) {
+        console.error(`[Internal Error] Failed to create league tier ${args.leagueTier}`)
+        throw new Error("Failed to create league")
+      }
     }
 
     // Upsert match
@@ -82,16 +88,21 @@ export const ingestMatch = internalMutation({
         matchNumber: args.matchNumber,
       })
       match = await ctx.db.get(matchId)
-      if (!match) throw new Error("Failed to create match")
+      if (!match) {
+        console.error(`[Internal Error] Failed to create match entry ${args.matchNumber} in league ${args.leagueTier}`)
+        throw new Error("Failed to create match")
+      }
     }
 
     // Insert results
     const seenPlacements = new Set<number>()
     for (const res of args.results) {
       if (seenPlacements.has(res.placement)) {
+        console.error(`[Validation] Duplicate placement ${res.placement} in match results`)
         throw new Error("Duplicate placement detected within match results")
       }
       if (!Number.isInteger(res.placement) || res.placement < 1) {
+        console.error(`[Validation] Invalid placement ${res.placement} for ${res.playerName}`)
         throw new Error("Placement must be a positive integer")
       }
       seenPlacements.add(res.placement)
@@ -109,7 +120,10 @@ export const ingestMatch = internalMutation({
           currentLeagueId: league._id,
         })
         player = await ctx.db.get(playerId)
-        if (!player) throw new Error("Failed to create player")
+        if (!player) {
+          console.error(`[Internal Error] Failed to create player ${res.playerName}`)
+          throw new Error("Failed to create player")
+        }
       }
 
       await ctx.db.insert("matchResults", {

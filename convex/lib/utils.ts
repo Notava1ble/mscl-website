@@ -9,6 +9,7 @@ export function jsonError(
   status: number,
   details?: Record<string, unknown>
 ) {
+  console.error(`[API Error] Status ${status}: ${message}`, details || "")
   return new Response(JSON.stringify({ error: message, status, ...details }), {
     status,
     headers: {
@@ -53,17 +54,19 @@ export async function validateApiKey(
 ): Promise<Response | null> {
   const providedKey = extractApiKey(request)
   if (!providedKey) {
+    console.warn(`[Auth] Missing API key for request to ${request.url}`)
     return jsonError("Missing API key. Provide it via 'x-api-key' header.", 401)
   }
 
   const expectedKey = process.env[envVarName] ?? ""
   if (!expectedKey) {
-    console.error(`${envVarName} environment variable is not set`)
+    console.error(`[Config] ${envVarName} environment variable is not set`)
     return jsonError("Server misconfiguration. Contact the API owner.", 500)
   }
 
   const isValid = await timingSafeEqual(providedKey, expectedKey)
   if (!isValid) {
+    console.warn(`[Auth] Invalid API key provided for ${envVarName}`)
     return jsonError("Invalid API key.", 403)
   }
 
@@ -95,12 +98,17 @@ export async function extractRequestBody<T>(
   try {
     body = await request.json()
   } catch {
+    console.error("Failed to parse JSON body.")
     return { errorResponse: jsonError("Invalid JSON body.", 400) }
   }
 
   // 3. Validate Schema
   const parseResult = schema.safeParse(body)
   if (!parseResult.success) {
+    console.error(
+      `[Validation] Schema validation failed for request to ${request.url}:`,
+      parseResult.error.format()
+    )
     return {
       errorResponse: jsonError("Invalid body payload.", 400, {
         issues: parseResult.error.issues,

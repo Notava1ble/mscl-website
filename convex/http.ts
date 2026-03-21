@@ -38,6 +38,9 @@ http.route({
         }
       )
 
+      console.info(
+        `[Success] POST /api/write/players: Created/Updated ${result.count} players`
+      )
       return new Response(
         JSON.stringify({ success: true, updated: result.count }),
         {
@@ -49,7 +52,7 @@ http.route({
         }
       )
     } catch (err: any) {
-      console.error("Handler error:", err)
+      console.error(`[Handler Error] POST /api/write/players:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),
@@ -78,6 +81,9 @@ http.route({
         results: matchData.results,
       })
 
+      console.info(
+        `[Success] POST /api/write/match: Ingested match ${matchData.matchNumber} for week ${matchData.weekNumber} (Tier ${matchData.leagueTier})`
+      )
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: {
@@ -86,7 +92,7 @@ http.route({
         },
       })
     } catch (err: any) {
-      console.error("Handler error:", err)
+      console.error(`[Handler Error] POST /api/write/match:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),
@@ -125,6 +131,9 @@ http.route({
         )
       }
 
+      console.info(
+        `[Success] POST /api/write/weeks/transition: Transitioned week ${transitionData.weekNumber} -> ${transitionData.newWeek} for ${result.count} players`
+      )
       return new Response(JSON.stringify(result), {
         status: 200,
         headers: {
@@ -133,7 +142,7 @@ http.route({
         },
       })
     } catch (err: any) {
-      console.error("Handler error:", err)
+      console.error(`[Handler Error] POST /api/write/weeks/transition:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),

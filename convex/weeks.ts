@@ -36,6 +36,7 @@ export const transitionWeek = internalMutation({
         .collect()
 
       if (existingStandings.length > 0) {
+        console.error(`[Business Logic] Standings for week ${args.weekNumber} already exist. Aborting transition.`)
         return {
           success: false,
           error: `Standings for week ${args.weekNumber} already exist.`,
@@ -49,7 +50,10 @@ export const transitionWeek = internalMutation({
         isCurrent: false,
       })
       week = await ctx.db.get(weekId)
-      if (!week) throw new Error("Failed to create week record")
+      if (!week) {
+        console.error(`[Internal Error] Failed to create week record for weekNumber ${args.weekNumber}`)
+        throw new Error("Failed to create week record")
+      }
     }
 
     // Cache league IDs to avoid repeated queries
@@ -116,8 +120,11 @@ export const transitionWeek = internalMutation({
           elo: p.elo,
           currentLeagueId: newLeagueId,
         })
-        player = await ctx.db.get(playerId)
-        if (!player) throw new Error("Failed to create player")
+        player = (await ctx.db.get(playerId))!
+        if (!player) {
+          console.error(`[Internal Error] Failed to find or create player ${p.name}`)
+          throw new Error("Failed to create player")
+        }
       }
 
       // Group by OLD tier so we can later calculate the standings for that tier
