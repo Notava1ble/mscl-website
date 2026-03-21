@@ -7,7 +7,7 @@ This page details the process of registering for the event, and how to play in a
 
 ## Registration
 
-The registration process is handled through [Discord](https://discord.gg/zzptZsec42). Upon joining, head to the `#league-signups` channel and send your Minecraft IGN. If you're planning on streaming the event, send your Twitch channel as well.
+The registration process is handled through [Discord](https://discord.gg/zzptZsec42). Upon joining, get the ranked role in `#roles-react`, head to the `#league-signups` channel and send your Minecraft IGN. If you're planning on streaming the event, send your Twitch channel as well.
 
 After that, wait for the admins to verify your registration. Once verified, you will be given a role corresponding to your league, which will allow you to access the league-specific channels in the server. This does not mean you actually need to play, it's just to say that you're interested. Read the section below if you want to play.
 
