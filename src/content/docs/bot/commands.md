@@ -5,14 +5,14 @@ description: A list of all MSCL bot commands.
 
 This bot is mostly created to simplify the work of the hosts and admins. However it also handles some important and not that important player related commands.
 
-## Functionallity
+## Functionality
 
 This bot requires specific roles in order to categorize people who call commands. Players should have the role “League X” with X being the number (1-6). Any player without the proper League X role (for example, a League 2 player attempting to call a command in a League 1 competition) will be denied access.
 
 ## Commands
 
 Format:
-Command [parameter1][parameter2][...] - explanation
+`Command [parameter1][parameter2][...] - explanation`
 Use case: xyz
 
 THESE COMMANDS WILL ONLY WORK IN YOUR LEAGUE CHANNEL (so if you’re league 3 use it in #league-3)! DO NOT USE THEM ANYWHERE ELSE.
@@ -45,4 +45,4 @@ The League Bot is a bot designed to streamline the creation of league matches, t
 
 We are aware that the outputs are very basic. We are not graphic designers, and so we do not have the capability to make it look better :( (we know ai slop would be worse).
 
-More info on the bot can be found [here](https://docs.google.com/document/d/10FpS0hHeqo5yKgIweX31PNr7h_uAD5Cm6kvbmeH4iwI/edit?tab=t.0).
+More info on the bot can be found in the [League Bot documentation](https://docs.google.com/document/d/10FpS0hHeqo5yKgIweX31PNr7h_uAD5Cm6kvbmeH4iwI/edit?tab=t.0).

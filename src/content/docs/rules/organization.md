@@ -9,7 +9,7 @@ The event is organized into 6 leagues based on skill levels. Players are seeded 
 | ------ | --------- | ------- |
 | 1      | 1650+     | 8       |
 | 2      | 1436-1649 | 8       |
-| 3      | 1263-1436 | 7       |
+| 3      | 1263-1435 | 7       |
 | 4      | 1105-1262 | 7       |
 | 5      | 871-1104  | 6       |
 | 6      | 0-870     | 5       |

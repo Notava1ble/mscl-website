@@ -12,7 +12,7 @@ export default defineConfig({
   integrations: [
     react(),
     starlight({
-      title: "MCSR Ranked Wiki",
+      title: "Ranked Leagues",
       customCss: ["./src/starlight.css"],
       markdown: {
         headingLinks: false,
