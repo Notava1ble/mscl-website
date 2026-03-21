@@ -41,7 +41,7 @@ export function DetailsPanel({
     return (
       <div
         className={cn(
-          "flex min-h-75 flex-col items-center justify-center bg-muted/10 p-6",
+          "flex min-h-75 flex-col items-center justify-center",
           showBorder && "rounded-3xl border border-border"
         )}
       >
