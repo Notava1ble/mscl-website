@@ -8,6 +8,9 @@ import starlight from "@astrojs/starlight"
 export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
+    optimizeDeps: {
+      include: ["react", "react-dom", "react-dom/client"],
+    },
   },
   integrations: [
     react(),

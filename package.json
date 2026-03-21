@@ -37,9 +37,6 @@
     "vite": "7",
     "zod": "^4.3.6"
   },
-  "overrides": {
-    "vite": "7"
-  },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "eslint": "^9.39.1",
