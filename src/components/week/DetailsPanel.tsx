@@ -3,17 +3,20 @@ import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import MatchData from "./MatchData"
 
 export function DetailsPanel({
   weekId,
   playerId,
   matchId,
+  rankedMatchId,
   playerStats,
   showBorder = true,
 }: {
   weekId: string | null
   playerId: string | null
   matchId: string | null
+  rankedMatchId: string | null
   playerStats: { name: string; totalPoints: number; rank: number } | null
   showBorder?: boolean
 }) {
@@ -38,13 +41,11 @@ export function DetailsPanel({
     return (
       <div
         className={cn(
-          "flex min-h-[300px] flex-col items-center justify-center bg-muted/10 p-6",
+          "flex min-h-75 flex-col items-center justify-center bg-muted/10 p-6",
           showBorder && "rounded-3xl border border-border"
         )}
       >
-        <p className="font-minecraft text-sm text-muted-foreground">
-          Comming soon...
-        </p>
+        <MatchData matchId={rankedMatchId} />
       </div>
     )
   }
@@ -69,8 +70,8 @@ function PlayerDetails({
   if (placements === undefined) {
     return (
       <div className="flex flex-col gap-4">
-        <Skeleton className="h-8 w-[200px]" />
-        <Skeleton className="h-4 w-[150px]" />
+        <Skeleton className="h-8 w-50" />
+        <Skeleton className="h-4 w-37.5" />
         <div className="mt-8 flex flex-col gap-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-6 w-full" />
@@ -87,9 +88,14 @@ function PlayerDetails({
           <span className="text-xl font-bold text-muted-foreground">
             #{stats.rank}
           </span>
-          <span className="text-xl tracking-widest text-foreground">
+          <a
+            className="text-xl tracking-widest text-foreground hover:underline"
+            href={`https://mcsrranked.com/stats/${stats.name}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             {stats.name}
-          </span>
+          </a>
         </div>
         <p className="space-x-2 text-sm text-foreground">
           <span className="font-bold">{stats.totalPoints}</span>

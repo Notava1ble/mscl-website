@@ -110,10 +110,13 @@ function WeekContent() {
 
   const selectedPlayer = standings?.find((s) => s.playerId === selectedPlayerId)
 
+  const selectedMatch = matches?.find((m) => m._id === selectedMatchId)
+
   const detailsPanelProps = {
     weekId: effectiveSelectedWeekId,
     playerId: selectedPlayerId,
     matchId: selectedMatchId,
+    rankedMatchId: selectedMatch?.rankedMatchId ?? null,
     playerStats: selectedPlayer
       ? {
           name: selectedPlayer.name,
