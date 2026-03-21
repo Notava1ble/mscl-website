@@ -116,12 +116,12 @@ const getMajorPhase = (type: string): Phase | null => {
 
 const phaseColors: Record<Phase, string> = {
   overworld: "bg-[#55ff55]", // Green
-  nether: "bg-[#ffaa00]", // Orange
-  bastion: "bg-[#ff5555]", // Red
-  fortress: "bg-[#222222]", // Near-black
-  blind: "bg-[#aa0000]", // Dark red
-  stronghold: "bg-[#7D66D8]", // Purple
-  end: "bg-[#7bce9e]", // Teal
+  nether: "bg-[#FF5555]", // Pinkish
+  bastion: "bg-[#222222]", // Near black
+  fortress: "bg-[#660000]", // dark red
+  blind: "bg-[#7755EE]", // purple
+  stronghold: "bg-[#77AA88]", // greenish
+  end: "bg-[#e2e2aa]", // Pale yellow
   complete: "bg-[#e2e2aa]", // Pale yellow
 }
 
@@ -178,33 +178,45 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
         ? completion?.time || finishEvent?.time || 0
         : pTimelines[pTimelines.length - 1]?.time || 0
 
-      // Deaths and minor events are absorbed into whichever major phase is currently active.
-      const phaseStart: Partial<Record<Phase, number>> = { overworld: 0 }
-      const phaseEnd: Partial<Record<Phase, number>> = {}
       let currentPhase: Phase = "overworld"
+      let currentStartTime: number = 0
       let lastMajorPhaseReached: Phase = "overworld"
 
+      const rawBlocks: {
+        phase: Phase
+        startTime: number
+        endTime: number
+        duration: number
+      }[] = []
+
       for (const event of pTimelines) {
+        // Skip events after the runner finishes
+        if (event.time > finalTime) continue
+
         const next = getMajorPhase(event.type)
         if (next && next !== currentPhase) {
-          phaseEnd[currentPhase] = event.time
-          phaseStart[next] = event.time
+          rawBlocks.push({
+            phase: currentPhase,
+            startTime: currentStartTime,
+            endTime: event.time,
+            duration: event.time - currentStartTime,
+          })
           currentPhase = next
+          currentStartTime = event.time
           lastMajorPhaseReached = next
         }
       }
-      // Close the last active phase at the player's final time
-      phaseEnd[currentPhase] = finalTime
 
-      // Build ordered blocks with only phases that were actually entered
-      const blocks = MAJOR_PHASES.filter((p) => phaseStart[p] !== undefined)
-        .map((p) => ({
-          phase: p,
-          startTime: phaseStart[p]!,
-          endTime: phaseEnd[p] ?? finalTime,
-          duration: (phaseEnd[p] ?? finalTime) - phaseStart[p]!,
-        }))
-        .filter((b) => b.duration > 0)
+      // Close the last active phase at the player's final time
+      rawBlocks.push({
+        phase: currentPhase,
+        startTime: currentStartTime,
+        endTime: finalTime,
+        duration: finalTime - currentStartTime,
+      })
+
+      // Filter out zero duration segments
+      const blocks = rawBlocks.filter((b) => b.duration > 0)
 
       const statusText = isFinished
         ? "finish"
@@ -274,7 +286,8 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
                   const isLast = idx === player.blocks.length - 1
 
                   return (
-                    <Tooltip key={block.phase}>
+                    // Needs to factor in index for key because phases can repeat
+                    <Tooltip key={`${block.phase}-${idx}`}>
                       <TooltipTrigger
                         render={
                           <div
