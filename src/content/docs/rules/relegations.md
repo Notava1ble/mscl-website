@@ -11,4 +11,4 @@ Based on the total points earned by each player in a week, we promote and relega
 
 ## Tie breaks
 
-If at the end of all matches, there is a tie for the last spot for promotion or relegation, another match will be played between the tied players to determine the promotion/relegation.
+Tie breaks are decided by the avarage time among all matches played that week.
