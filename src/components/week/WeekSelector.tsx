@@ -50,7 +50,7 @@ export function WeekSelector({
         <ChevronLeft className="h-5 w-5" />
       </CustomButton>
 
-      <div className="min-w-[120px] text-center">
+      <div className="min-w-30 text-center">
         <h3 className="text-lg font-medium tracking-tight text-foreground">
           Week {currentWeek.weekNumber}
         </h3>
