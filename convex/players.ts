@@ -1,5 +1,5 @@
 import { v } from "convex/values"
-import { internalMutation, query } from "./_generated/server"
+import { internalMutation, internalQuery, query } from "./_generated/server"
 
 export const listPlayersInLeague = query({
   args: {
@@ -11,6 +11,18 @@ export const listPlayersInLeague = query({
       .withIndex("by_league", (q) => q.eq("currentLeagueId", args.leagueId))
       .order("desc")
       .collect()
+  },
+})
+
+export const getPlayerByName = internalQuery({
+  args: {
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("players")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .first()
   },
 })
 

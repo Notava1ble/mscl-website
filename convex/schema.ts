@@ -41,7 +41,8 @@ export default defineSchema({
     placement: v.number(),
   })
     .index("by_match", ["matchId"])
-    .index("by_player", ["playerId"]),
+    .index("by_player", ["playerId"])
+    .index("by_match_and_player", ["matchId", "playerId"]),
 
   weeklyStandings: defineTable({
     weekId: v.id("weeks"),

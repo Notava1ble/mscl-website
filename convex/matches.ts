@@ -1,5 +1,5 @@
 import { v } from "convex/values"
-import { internalMutation } from "./_generated/server"
+import { internalMutation, internalQuery } from "./_generated/server"
 
 export const ingestMatch = internalMutation({
   args: {
@@ -151,5 +151,70 @@ export const ingestMatch = internalMutation({
       matchId: match._id,
       resultsInserted: args.results.length,
     }
+  },
+})
+
+export const listPlayerMatches = internalQuery({
+  args: {
+    playerName: v.string(),
+    weekNumber: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_name", (q) => q.eq("name", args.playerName))
+      .first()
+    if (!player) {
+      console.warn(`[Data] No player found with name ${args.playerName}`)
+      throw new Error("Player not found")
+    }
+
+    const week = args.weekNumber
+      ? await ctx.db
+          .query("weeks")
+          .withIndex("by_week_number", (q) =>
+            q.eq("weekNumber", args.weekNumber!)
+          )
+          .first()
+      : await ctx.db
+          .query("weeks")
+          .withIndex("by_current", (q) => q.eq("isCurrent", true))
+          .first()
+
+    if (!week) {
+      console.warn(
+        `[Data] No week found for weekNumber ${args.weekNumber || "(current week)"} when querying matches for player ${args.playerName}`
+      )
+      throw new Error("Week not found")
+    }
+
+    const matchesThisWeek = await ctx.db
+      .query("matches")
+      .withIndex("by_week_and_league", (q) =>
+        q.eq("weekId", week._id).eq("leagueId", player.currentLeagueId)
+      )
+      .collect()
+
+    const playerMatches = (
+      await Promise.all(
+        matchesThisWeek.map(async (match) => {
+          const result = await ctx.db
+            .query("matchResults")
+            .withIndex("by_match_and_player", (q) =>
+              q.eq("matchId", match._id).eq("playerId", player._id)
+            )
+            .first()
+
+          if (!result) return null
+          return {
+            rankedMatchId: match.rankedMatchId,
+            pointsWon: result.pointsWon,
+            timeMs: result.timeMs,
+            placement: result.placement,
+          }
+        })
+      )
+    ).filter((m) => m !== null)
+    return playerMatches
   },
 })

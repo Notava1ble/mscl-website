@@ -147,3 +147,39 @@ http.route({
     }
   }),
 })
+
+http.route({
+  path: "/api/read/matches/player",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    // Validate API key
+    const authError = await validateApiKey(request, "READER_API_KEY")
+    if (authError) return authError
+
+    // Search params
+    const { searchParams } = new URL(request.url)
+    const playerName = searchParams.get("playerName")
+
+    if (!playerName) {
+      return jsonError("Missing required query parameter 'playerName'", 400)
+    }
+    try {
+      const matches = await ctx.runQuery(internal.matches.listPlayerMatches, {
+        playerName,
+      })
+      console.info(
+        `[Success] GET /api/read/matches/player: Retrieved ${matches.length} matches for player ${playerName}`
+      )
+      return new Response(JSON.stringify({ success: true, matches }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
+    } catch (err: any) {
+      console.error(`[Handler Error] GET /api/read/matches/player:`, err)
+      return jsonError(err.message || "Internal server error.", 500)
+    }
+  }),
+})
