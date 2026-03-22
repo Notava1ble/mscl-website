@@ -261,7 +261,6 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
             />
 
             <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
-              {/* Text Meta Layer */}
               <div className="flex flex-row items-baseline gap-2 text-sm leading-none">
                 <a
                   className="text-[15px] font-medium text-gray-100 hover:underline"
@@ -279,40 +278,16 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
                 </span>
               </div>
 
-              {/* Proportional Timeline Bar */}
               <div className="flex h-3 w-full items-center">
-                {player.blocks.map((block, idx) => {
-                  const isFirst = idx === 0
-                  const isLast = idx === player.blocks.length - 1
-
-                  return (
-                    // Needs to factor in index for key because phases can repeat
-                    <Tooltip key={`${block.phase}-${idx}`}>
-                      <TooltipTrigger
-                        render={
-                          <div
-                            className={[
-                              "relative h-full cursor-pointer transition-all duration-150",
-                              "hover:z-10 hover:scale-y-[1.75]",
-                              !isLast ? "border-r-2 border-[#2b2d31]" : "",
-                              isFirst ? "rounded-l-full" : "",
-                              isLast ? "rounded-r-full" : "",
-                              phaseColors[block.phase],
-                            ].join(" ")}
-                            style={{ width: `${block.width}%` }}
-                          />
-                        }
-                      />
-                      <TooltipContent side="top">
-                        <p className="text-xs font-medium">
-                          {phaseNames[block.phase]} —{" "}
-                          {formatTime(block.duration)} (at{" "}
-                          {formatTime(block.endTime)})
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                })}
+                {player.blocks.map((block, idx) => (
+                  <PhaseBlockTooltip
+                    key={`${block.phase}-${idx}`}
+                    block={block}
+                    isFirst={idx === 0}
+                    isLast={idx === player.blocks.length - 1}
+                    idx={idx}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -323,3 +298,61 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
 }
 
 export default MatchData
+
+type PhaseBlock = {
+  phase: Phase
+  startTime: number
+  endTime: number
+  duration: number
+  width: number
+}
+
+const PhaseBlockTooltip = ({
+  block,
+  isFirst,
+  isLast,
+  idx,
+}: {
+  block: PhaseBlock
+  isFirst: boolean
+  isLast: boolean
+  idx: number
+}) => {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger
+        render={
+          <div
+            key={`${block.phase}-${idx}`}
+            className={[
+              "relative h-full cursor-pointer transition-all duration-150",
+              "hover:z-10 hover:scale-y-[1.5]",
+              !isLast ? "border-r-2 border-[#2b2d31]" : "",
+              isFirst ? "rounded-l-full" : "",
+              isLast ? "rounded-r-full" : "",
+              phaseColors[block.phase],
+            ].join(" ")}
+            style={{ width: `${block.width}%` }}
+            // toggle open on tap
+            onTouchStart={(e) => {
+              e.preventDefault() // prevent ghost mouse events
+              setOpen((prev) => !prev)
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault()
+              setOpen((prev) => !prev)
+            }}
+          />
+        }
+      />
+      <TooltipContent side="top">
+        <p className="text-xs font-medium">
+          {phaseNames[block.phase]} — {formatTime(block.duration)} (at{" "}
+          {formatTime(block.endTime)})
+        </p>
+      </TooltipContent>
+    </Tooltip>
+  )
+}

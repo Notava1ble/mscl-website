@@ -24,7 +24,7 @@ export function DetailsPanel({
     return (
       <div
         className={cn(
-          "bg-muted/10 p-6 lg:p-8",
+          "p-0 md:bg-muted/10 md:p-4 lg:p-8",
           showBorder && "rounded-3xl border border-border"
         )}
       >
@@ -41,7 +41,7 @@ export function DetailsPanel({
     return (
       <div
         className={cn(
-          "flex min-h-75 flex-col items-center justify-center",
+          "flex min-h-75 flex-col items-center justify-center p-0 md:bg-muted/10 md:p-4",
           showBorder && "rounded-3xl border border-border"
         )}
       >
