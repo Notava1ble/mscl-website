@@ -163,12 +163,16 @@ http.route({
     if (!playerName) {
       return jsonError("Missing required query parameter 'playerName'", 400)
     }
+
+    const weekNumber = searchParams.get("week")
+
     try {
       const matches = await ctx.runQuery(internal.matches.listPlayerMatches, {
         playerName,
+        weekNumber: weekNumber ? Number(weekNumber) : undefined,
       })
       console.info(
-        `[Success] GET /api/read/matches/player: Retrieved ${matches.length} matches for player ${playerName}`
+        `[Success] GET /api/read/matches/player: Retrieved ${matches.length} matches for player ${playerName} and week ${weekNumber || "(current)"}`
       )
       return new Response(JSON.stringify({ success: true, matches }), {
         status: 200,
