@@ -167,14 +167,14 @@ http.route({
     const weekNumber = searchParams.get("week")
 
     try {
-      const matches = await ctx.runQuery(internal.matches.listPlayerMatches, {
+      const data = await ctx.runQuery(internal.matches.listPlayerMatches, {
         playerName,
         weekNumber: weekNumber ? Number(weekNumber) : undefined,
       })
       console.info(
-        `[Success] GET /api/read/matches/player: Retrieved ${matches.length} matches for player ${playerName} and week ${weekNumber || "(current)"}`
+        `[Success] GET /api/read/matches/player: Retrieved ${data.matches.length} matches for player ${playerName} and week ${weekNumber || "(current)"}`
       )
-      return new Response(JSON.stringify({ success: true, matches }), {
+      return new Response(JSON.stringify({ success: true, data }), {
         status: 200,
         headers: {
           "Content-Type": "application/json",
