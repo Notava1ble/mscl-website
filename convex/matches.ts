@@ -169,6 +169,8 @@ export const listPlayerMatches = internalQuery({
       throw new Error("Player not found")
     }
 
+    const league = await ctx.db.get(player.currentLeagueId)
+
     const week = args.weekNumber
       ? await ctx.db
           .query("weeks")
@@ -215,6 +217,11 @@ export const listPlayerMatches = internalQuery({
         })
       )
     ).filter((m) => m !== null)
-    return playerMatches
+    return {
+      playerName: player.name,
+      leagueName: league ? league.name : "Unknown",
+      weekNumber: week.weekNumber,
+      matches: playerMatches,
+    }
   },
 })
