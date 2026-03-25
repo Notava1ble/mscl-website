@@ -62,6 +62,16 @@ export default defineConfig({
           items: [{ label: "Command List", slug: "bot/commands" }],
         },
         {
+          label: "MSCL API",
+          collapsed: false,
+          items: [
+            { label: "Overview", slug: "api/overview" },
+            { label: "Authentication", slug: "api/authentication" },
+            { label: "Endpoints", slug: "api/endpoints" },
+            { label: "Notes", slug: "api/notes" },
+          ],
+        },
+        {
           label: "Extra Information",
           collapsed: false,
           items: [
