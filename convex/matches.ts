@@ -1,5 +1,7 @@
 import { v } from "convex/values"
 import { internalMutation, internalQuery } from "./_generated/server"
+import type { GenericQueryCtx } from "convex/server"
+import type { DataModel, Doc, Id } from "./_generated/dataModel"
 
 export const ingestMatch = internalMutation({
   args: {
@@ -210,6 +212,7 @@ export const listPlayerMatches = internalQuery({
           if (!result) return null
           return {
             rankedMatchId: match.rankedMatchId,
+            matchNumber: match.matchNumber,
             pointsWon: result.pointsWon,
             timeMs: result.timeMs,
             placement: result.placement,
@@ -222,6 +225,144 @@ export const listPlayerMatches = internalQuery({
       leagueName: league ? league.name : "Unknown",
       weekNumber: week.weekNumber,
       matches: playerMatches,
+    }
+  },
+})
+
+type QueryCtx = GenericQueryCtx<DataModel>
+
+async function resolvePlayerByName(ctx: QueryCtx, playerName: string) {
+  const player = await ctx.db
+    .query("players")
+    .withIndex("by_name", (q) => q.eq("name", playerName))
+    .first()
+
+  if (!player) {
+    console.warn(`[Data] No player found with name ${playerName}`)
+    throw new Error("Player not found")
+  }
+
+  return player
+}
+
+async function resolveWeekByWeekNumber(ctx: QueryCtx, weekNumber: number) {
+  const week = await ctx.db
+    .query("weeks")
+    .withIndex("by_week_number", (q) => q.eq("weekNumber", weekNumber))
+    .first()
+
+  if (!week) {
+    console.warn(`[Data] No week found for weekNumber ${weekNumber}`)
+    throw new Error("Week not found")
+  }
+
+  return week
+}
+
+export const listPlayerWeeksParticipated = internalQuery({
+  args: {
+    playerName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const player = await resolvePlayerByName(ctx, args.playerName)
+
+    const playerResults = await ctx.db
+      .query("weeklyStandings")
+      .withIndex("by_player", (q) => q.eq("playerId", player._id))
+      .collect()
+
+    return {
+      playerName: player.name,
+      weeks: playerResults.map((res) => res.weekNumber).sort((a, b) => b - a),
+    }
+  },
+})
+
+export const getPlayerLeagueAtWeek = internalQuery({
+  args: {
+    playerName: v.string(),
+    weekNumber: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const player = await resolvePlayerByName(ctx, args.playerName)
+    const latestLeagueNumber = await ctx.db.get(player.currentLeagueId)
+    const weekNumber = args.weekNumber
+    if (!weekNumber) {
+      return {
+        playerName: player.name,
+        leagueNumber: latestLeagueNumber?.tierLevel,
+      }
+    }
+    const playerResults = await ctx.db
+      .query("weeklyStandings")
+      .withIndex("by_player", (q) => q.eq("playerId", player._id))
+      .collect()
+    let league: number | undefined
+    for (let i = weekNumber; i >= 1; i--) {
+      league = playerResults.find((res) => res.weekNumber === i)?.leagueNumber
+      if (league) {
+        return {
+          playerName: player.name,
+          leagueNumber: league,
+        }
+      }
+    }
+    return {
+      playerName: player.name,
+      leagueNumber: latestLeagueNumber?.tierLevel,
+    }
+  },
+})
+
+export const getPlayerMatchResult = internalQuery({
+  args: {
+    playerName: v.string(),
+    weekNumber: v.number(),
+    matchNumber: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const player = await resolvePlayerByName(ctx, args.playerName)
+    const week = await resolveWeekByWeekNumber(ctx, args.weekNumber)
+
+    const playerResults = await ctx.db
+      .query("weeklyStandings")
+      .withIndex("by_week_and_player", (q) =>
+        q.eq("weekId", week._id).eq("playerId", player._id)
+      )
+      .first()
+
+    if (!playerResults) {
+      console.warn(
+        `Player "${player.name}" doesn't have any result for week ${week.weekNumber} `
+      )
+      throw new Error("Week not found")
+    }
+
+    const match = await ctx.db
+      .query("matches")
+      .withIndex("by_week_league_match", (q) =>
+        q
+          .eq("weekId", week._id)
+          .eq("leagueId", playerResults?.leagueId)
+          .eq("matchNumber", args.matchNumber)
+      )
+      .first()
+    if (!match) return null
+
+    const result = await ctx.db
+      .query("matchResults")
+      .withIndex("by_match_and_player", (q) =>
+        q.eq("matchId", match._id).eq("playerId", player._id)
+      )
+      .first()
+    if (!result) return null
+
+    return {
+      rankedMatchId: match.rankedMatchId,
+      matchNumber: match.matchNumber,
+      pointsWon: result.pointsWon,
+      timeMs: result.timeMs,
+      placement: result.placement,
     }
   },
 })

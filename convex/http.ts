@@ -147,8 +147,12 @@ http.route({
     }
   }),
 })
+
+// READ API'S
+
+// Return the weeks where the player participated in.
 http.route({
-  path: "/api/read/player/weeks",
+  path: "/api/read/players/weeks",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
     const authError = await validateApiKey(request, "READER_API_KEY")
@@ -162,13 +166,12 @@ http.route({
     }
 
     try {
-      const data = await ctx.runQuery(internal.matches.listPlayerMatches, {
-        playerName,
-      })
+      const data = await ctx.runQuery(
+        internal.matches.listPlayerWeeksParticipated,
+        { playerName }
+      )
 
-      const weeks: number[] = [
-        ...new Set(data.matches.map((m: any) => m.weekNumber)),
-      ]
+      const weeks = data.weeks
       return new Response(
         JSON.stringify({
           success: true,
@@ -183,12 +186,15 @@ http.route({
         }
       )
     } catch (err: any) {
+      console.error(`[Handler Error] GET /api/read/players/weeks:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),
 })
+
+// Return the leagues where the player is currently at, or at specific week.
 http.route({
-  path: "/api/read/player/league",
+  path: "/api/read/players/league",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
     const authError = await validateApiKey(request, "READER_API_KEY")
@@ -196,20 +202,33 @@ http.route({
 
     const { searchParams } = new URL(request.url)
     const playerName = searchParams.get("playerName")
+    const week = searchParams.get("week")
 
     if (!playerName) {
       return jsonError("Missing required query parameter 'playerName'", 400)
     }
 
     try {
-      const player = await ctx.runQuery(internal.players.getPlayerByName, {
-        name: playerName,
+      const weekNumber = week ? Number(week) : undefined
+      if (week && !Number.isFinite(weekNumber)) {
+        return jsonError("Query parameter 'week' must be a number", 400)
+      }
+
+      const data = await ctx.runQuery(internal.matches.getPlayerLeagueAtWeek, {
+        playerName,
+        weekNumber,
       })
+
+      console.info(
+        `[Success] GET /api/read/players/league: Resolved league for player ${playerName}${week ? ` (requested week ${week})` : ""}`
+      )
 
       return new Response(
         JSON.stringify({
           success: true,
-          leagueId: player?.currentLeagueId,
+          playerName: data.playerName,
+          leagueNumber: data.leagueNumber,
+          weekNumber: weekNumber,
         }),
         {
           status: 200,
@@ -220,12 +239,15 @@ http.route({
         }
       )
     } catch (err: any) {
+      console.error(`[Handler Error] GET /api/read/players/league:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),
 })
+
+// Return the total placement/points for a week.
 http.route({
-  path: "/api/read/player/week/points",
+  path: "/api/read/players/week/summary",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
     const authError = await validateApiKey(request, "READER_API_KEY")
@@ -249,50 +271,9 @@ http.route({
         weekNumber: Number(week),
       })
 
-      const totalPoints = data.matches.reduce(
-        (sum: number, m: any) => sum + m.pointsWon,
-        0
-      )
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          points: totalPoints,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      )
-    } catch (err: any) {
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})
-http.route({
-  path: "/api/read/player/week/placement",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    const authError = await validateApiKey(request, "READER_API_KEY")
-    if (authError) return authError
-
-    const { searchParams } = new URL(request.url)
-
-    const playerName = searchParams.get("playerName")
-    const week = searchParams.get("week")
-
-    if (!playerName || !week) {
-      return jsonError("Missing required query parameters", 400)
-    }
-
-    try {
-      const data = await ctx.runQuery(internal.matches.listPlayerMatches, {
-        playerName,
-        weekNumber: Number(week),
-      })
+      const totalPoints = data.matches.reduce((sum: number, m: any) => {
+        return sum + m.pointsWon
+      }, 0)
 
       const avgPlacement =
         data.matches.length === 0
@@ -300,10 +281,16 @@ http.route({
           : data.matches.reduce((sum: number, m: any) => sum + m.placement, 0) /
             data.matches.length
 
+      console.info(
+        `[Success] GET /api/read/players/week/summary: Retrieved summary for player ${playerName} week ${week}`
+      )
+
       return new Response(
         JSON.stringify({
           success: true,
-          placement: avgPlacement,
+          points: totalPoints,
+          avgPlacement,
+          matchesCount: data.matches.length,
         }),
         {
           status: 200,
@@ -314,12 +301,14 @@ http.route({
         }
       )
     } catch (err: any) {
+      console.error(`[Handler Error] GET /api/read/players/week/summary:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),
 })
+
 http.route({
-  path: "/api/read/player/match/placement",
+  path: "/api/read/players/match",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
     const authError = await validateApiKey(request, "READER_API_KEY")
@@ -336,79 +325,30 @@ http.route({
     }
 
     try {
-      const data = await ctx.runQuery(internal.matches.listPlayerMatches, {
+      const result = await ctx.runQuery(internal.matches.getPlayerMatchResult, {
         playerName,
         weekNumber: Number(week),
+        matchNumber: Number(match),
       })
 
-      const found = data.matches.find(
-        (m: any) => m.matchNumber === Number(match)
-      )
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          placement: found?.placement,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      )
-    } catch (err: any) {
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})
-http.route({
-  path: "/api/read/player/match/splits",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    const authError = await validateApiKey(request, "READER_API_KEY")
-    if (authError) return authError
-
-    const { searchParams } = new URL(request.url)
-
-    const rankedMatchId = searchParams.get("rankedMatchId")
-    const playerUuid = searchParams.get("playerUuid")
-
-    if (!rankedMatchId || !playerUuid) {
-      return jsonError(
-        "Missing required query parameters 'rankedMatchId' and 'playerUuid'",
-        400
-      )
-    }
-
-    try {
-      const response = await fetch(
-        `https://api.mcsrranked.com/matches/${rankedMatchId}`
-      )
-
-      if (!response.ok) {
-        return jsonError("Failed to fetch match data", response.status)
-      }
-
-      const json = await response.json()
-
-      if (!json?.data) {
+      // Return a 404 if not found
+      if (!result) {
         return jsonError("Match not found", 404)
       }
-      
-      const timelines =
-        json.data.timelines
-          ?.filter((t: any) => t.uuid === playerUuid)
-          ?.map((t: any) => ({
-            type: t.type,
-            time: t.time,
-          })) ?? []
 
+      console.info(
+        `[Success] GET /api/read/players/match: Retrieved match ${match} for player ${playerName} week ${week}`
+      )
       return new Response(
         JSON.stringify({
           success: true,
-          splits: timelines,
+          playerName,
+          weekNumber: week,
+          matchNumber: result.matchNumber,
+          pointsWon: result.pointsWon,
+          placement: result.placement,
+          rankedMatchId: result.rankedMatchId,
+          timeMs: result.timeMs,
         }),
         {
           status: 200,
@@ -419,14 +359,17 @@ http.route({
         }
       )
     } catch (err: any) {
-      console.error(err)
-
+      console.error(`[Handler Error] GET /api/read/players/match:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),
 })
+
+// REMOVED SPLITS API
+
+// Gets player matches for specific week.
 http.route({
-  path: "/api/read/matches/player",
+  path: "/api/read/players/matches",
   method: "GET",
   handler: httpAction(async (ctx, request) => {
     // Validate API key
@@ -449,7 +392,7 @@ http.route({
         weekNumber: weekNumber ? Number(weekNumber) : undefined,
       })
       console.info(
-        `[Success] GET /api/read/matches/player: Retrieved ${data.matches.length} matches for player ${playerName} and week ${weekNumber || "(current)"}`
+        `[Success] GET /api/read/players/matches: Retrieved ${data.matches.length} matches for player ${playerName} and week ${weekNumber || "(current)"}`
       )
       return new Response(JSON.stringify({ success: true, data }), {
         status: 200,
@@ -459,7 +402,7 @@ http.route({
         },
       })
     } catch (err: any) {
-      console.error(`[Handler Error] GET /api/read/matches/player:`, err)
+      console.error(`[Handler Error] GET /api/read/players/matches:`, err)
       return jsonError(err.message || "Internal server error.", 500)
     }
   }),

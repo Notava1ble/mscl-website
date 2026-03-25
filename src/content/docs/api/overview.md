@@ -1,10 +1,42 @@
 ---
 title: Overview
-description: What does this API do?
+description: API surface and endpoint groups.
 ---
 
-The API allows you to:
+The MSCL API is exposed through Convex HTTP routes in `convex/http.ts`.
 
-Retrieve player stats, matches, and week information.
+## Base URL
 
-Endpoints are accessible via HTTP GET requests and return JSON data.
+Use your deployment URL, then append the route path:
+
+`https://<your-convex-deployment>/api/...`
+
+## Endpoint groups
+
+- Read endpoints (`GET`) for player/match lookups.
+- Write endpoints (`POST`) for moderator data ingestion.
+
+## Authentication model
+
+All routes require `Authorization: Bearer <API_KEY>`.
+
+- Read routes validate against `READER_API_KEY`.
+- Write routes validate against `WRITER_API_KEY`.
+
+See the Authentication page for request header examples.
+
+## Route index
+
+### Write routes
+
+- `POST /api/write/players`
+- `POST /api/write/match`
+- `POST /api/write/weeks/transition`
+
+### Read routes
+
+- `GET /api/read/players/weeks`
+- `GET /api/read/players/league`
+- `GET /api/read/players/week/summary`
+- `GET /api/read/players/match`
+- `GET /api/read/players/matches`

@@ -1,94 +1,226 @@
 ---
-title: Reading Data
-description: How to read data with the API.
+title: Endpoints
+description: Route-by-route API reference.
 ---
 
-1. Get Player Weeks
+This reference matches the routes currently registered in `convex/http.ts`.
 
-Endpoint:
+## Write endpoints
 
-GET /api/read/player/weeks?playerName=<name>
+### `POST /api/write/players`
 
-Response:
+Auth: `WRITER_API_KEY`
 
+Body:
+
+```json
+[
+  {
+    "name": "PlayerOne",
+    "elo": 1240,
+    "leagueTier": 3
+  }
+]
+```
+
+Success response:
+
+```json
+{
+  "success": true,
+  "updated": 1
+}
+```
+
+---
+
+### `POST /api/write/match`
+
+Auth: `WRITER_API_KEY`
+
+Body:
+
+```json
+{
+  "weekNumber": 4,
+  "matchNumber": 2,
+  "leagueTier": 3,
+  "rankedMatchId": "abcd-1234",
+  "results": [
+    {
+      "playerName": "PlayerOne",
+      "placement": 1,
+      "pointsWon": 12,
+      "timeMs": 600000
+    }
+  ]
+}
+```
+
+Success response:
+
+```json
+{
+  "success": true
+}
+```
+
+---
+
+### `POST /api/write/weeks/transition`
+
+Auth: `WRITER_API_KEY`
+
+Body:
+
+```json
+{
+  "weekNumber": 4,
+  "newWeek": 5,
+  "players": [
+    {
+      "name": "PlayerOne",
+      "elo": 1300,
+      "leagueTier": 2
+    }
+  ]
+}
+```
+
+Success response:
+
+```json
+{
+  "success": true,
+  "count": 1
+}
+```
+
+## Read endpoints
+
+### `GET /api/read/players/weeks`
+
+Auth: `READER_API_KEY`
+
+Query params:
+
+- `playerName` (required)
+
+Success response:
+
+```json
 {
   "success": true,
   "weeks": [1, 2, 3, 4]
 }
+```
 
-2. Get Player League
+---
 
-Endpoint:
+### `GET /api/read/players/league`
 
-GET /api/read/player/league?playerName=<name>
+Auth: `READER_API_KEY`
 
-Response:
+Query params:
 
+- `playerName` (required)
+- `week` (optional number)
+
+Success response:
+
+```json
 {
   "success": true,
-  "leagueId": "tier_3"
+  "playerName": "PlayerOne",
+  "leagueNumber": 3,
+  "weekNumber": 4
 }
+```
 
-3. Get Player Week Points & Placement
+---
 
-Points:
+### `GET /api/read/players/week/summary`
 
-GET /api/read/player/week/points?playerName=<name>&week=<weekNumber>
+Auth: `READER_API_KEY`
 
-Placement:
+Query params:
 
-GET /api/read/player/week/placement?playerName=<name>&week=<weekNumber>
+- `playerName` (required)
+- `week` (required number)
 
-Responses:
-Points:
+Success response:
 
+```json
 {
   "success": true,
-  "points": 120
+  "points": 36,
+  "avgPlacement": 2,
+  "matchesCount": 3
 }
+```
 
-Placement:
+---
 
+### `GET /api/read/players/match`
+
+Auth: `READER_API_KEY`
+
+Query params:
+
+- `playerName` (required)
+- `week` (required number)
+- `match` (required number)
+
+Success response:
+
+```json
 {
   "success": true,
-  "placement": 2
+  "playerName": "PlayerOne",
+  "weekNumber": "4",
+  "matchNumber": 2,
+  "pointsWon": 12,
+  "placement": 1,
+  "rankedMatchId": "abcd-1234",
+  "timeMs": 600000
 }
+```
 
-4. Get Player Match Placement
-GET /api/read/player/match/placement?playerName=<name>&week=<weekNumber>&match=<matchNumber>
+---
 
-Response:
+### `GET /api/read/players/matches`
 
-{
-  "success": true,
-  "placement": 1
-}
+Auth: `READER_API_KEY`
 
-5. Get Player Match Splits (Timelines)
-GET /api/read/player/match/splits?rankedMatchId=<id>&playerUuid=<uuid>
+Query params:
 
-Response:
+- `playerName` (required)
+- `week` (optional number)
 
-{
-  "success": true,
-  "splits": [
-    {"type": "overworld_start", "time": 0},
-    {"type": "nether_enter", "time": 120000},
-    {"type": "complete", "time": 600000}
-  ]
-}
+Success response:
 
-6. Get Matches by Player
-GET /api/read/matches/player?playerName=<name>&week=<weekNumber(optional)>
-
-Response:
-
+```json
 {
   "success": true,
   "data": {
     "matches": [
-      {"matchNumber": 1, "weekNumber": 2, "pointsWon": 10},
-      {"matchNumber": 2, "weekNumber": 2, "pointsWon": 12}
+      {
+        "matchNumber": 1,
+        "weekNumber": 4,
+        "pointsWon": 10,
+        "placement": 3,
+        "rankedMatchId": "abcd-1111",
+        "timeMs": 630000
+      }
     ]
   }
 }
+```
+
+## Common error cases
+
+- Missing required query/body fields: `400`
+- Invalid numeric query values (for example `week`): `400`
+- Missing or invalid API key: auth error response
+- Unknown player/match in a targeted read route: `404` where applicable
+- Unexpected handler failures: `500`

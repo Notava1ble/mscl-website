@@ -1,1 +1,1 @@
-- [ ] ignore players who aren't registered for the current week
+- [ ] Migrate the schema to add matchNumber into match Results table
