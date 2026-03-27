@@ -1,4 +1,4 @@
-import REGS from "./data/week4regs"
+import REGS from "./data/week4regs_old"
 import fs from "fs"
 
 type RegType = (typeof REGS)[number]

@@ -36,7 +36,9 @@ export const transitionWeek = internalMutation({
         .collect()
 
       if (existingStandings.length > 0) {
-        console.error(`[Business Logic] Standings for week ${args.weekNumber} already exist. Aborting transition.`)
+        console.error(
+          `[Business Logic] Standings for week ${args.weekNumber} already exist. Aborting transition.`
+        )
         return {
           success: false,
           error: `Standings for week ${args.weekNumber} already exist.`,
@@ -51,7 +53,9 @@ export const transitionWeek = internalMutation({
       })
       week = await ctx.db.get(weekId)
       if (!week) {
-        console.error(`[Internal Error] Failed to create week record for weekNumber ${args.weekNumber}`)
+        console.error(
+          `[Internal Error] Failed to create week record for weekNumber ${args.weekNumber}`
+        )
         throw new Error("Failed to create week record")
       }
     }
@@ -79,17 +83,14 @@ export const transitionWeek = internalMutation({
       return leagueCache.get(tier)!
     }
 
-    // Upsert all players and group by OLD league tier
-    // leagueTier in args is the NEW league after promotion/relegation.
-    // We group by the old league because that's where matches were played this week.
-    type PlayerEntry = {
-      playerId: import("./_generated/dataModel").Id<"players">
-      oldLeagueTier: number
-      movement: "promoted" | "relegated" | "stayed" | "new"
-    }
+    type Movement = "promoted" | "relegated" | "stayed" | "new"
 
-    const leagueGroups = new Map<number, PlayerEntry[]>()
+    const movementMap = new Map<
+      import("./_generated/dataModel").Id<"players">,
+      Movement
+    >()
 
+    // Only patch players
     for (const p of args.players) {
       const newLeagueId = await getLeagueId(p.leagueTier)
 
@@ -98,14 +99,11 @@ export const transitionWeek = internalMutation({
         .withIndex("by_name", (q) => q.eq("name", p.name))
         .first()
 
-      let movement: "promoted" | "relegated" | "stayed" | "new" = "new"
-      // For new players there is no old league, so fall back to their new tier
-      let oldLeagueTier = p.leagueTier
+      let movement: Movement = "new"
 
       if (player) {
         const oldLeague = await ctx.db.get(player.currentLeagueId)
         if (oldLeague) {
-          oldLeagueTier = oldLeague.tierLevel
           if (oldLeague.tierLevel > p.leagueTier) movement = "promoted"
           else if (oldLeague.tierLevel < p.leagueTier) movement = "relegated"
           else movement = "stayed"
@@ -114,79 +112,84 @@ export const transitionWeek = internalMutation({
           elo: p.elo,
           currentLeagueId: newLeagueId,
         })
+        movementMap.set(player._id, movement)
       } else {
         const playerId = await ctx.db.insert("players", {
           name: p.name,
           elo: p.elo,
           currentLeagueId: newLeagueId,
         })
-        player = (await ctx.db.get(playerId))!
+        player = await ctx.db.get(playerId)
         if (!player) {
-          console.error(`[Internal Error] Failed to find or create player ${p.name}`)
+          console.error(
+            `[Internal Error] Failed to find or create player ${p.name}`
+          )
           throw new Error("Failed to create player")
         }
+        movementMap.set(player._id, "new")
       }
-
-      // Group by OLD tier so we can later calculate the standings for that tier
-      const group = leagueGroups.get(oldLeagueTier) ?? []
-      group.push({ playerId: player._id, oldLeagueTier, movement })
-      leagueGroups.set(oldLeagueTier, group)
     }
 
-    // Per old league, sum points and rank players
-    for (const [oldTier, entries] of leagueGroups) {
-      const oldLeagueId = await getLeagueId(oldTier)
+    // Get all matches for the week across all leagues
+    const allWeekMatches = await ctx.db
+      .query("matches")
+      .withIndex("by_week_and_league", (q) => q.eq("weekId", week!._id))
+      .collect()
 
-      // Fetch all matches played in this league during this week
-      const matches = await ctx.db
-        .query("matches")
-        .withIndex("by_week_and_league", (q) =>
-          q.eq("weekId", week._id).eq("leagueId", oldLeagueId)
-        )
+    const leagueTiersThisWeek = new Set<number>()
+    for (const match of allWeekMatches) {
+      const league = await ctx.db.get(match.leagueId)
+      if (league) leagueTiersThisWeek.add(league.tierLevel)
+    }
+
+    // Fetch ALL match results upfront, keyed by matchId
+    const allResultsByMatch = new Map<
+      import("./_generated/dataModel").Id<"matches">,
+      {
+        playerId: import("./_generated/dataModel").Id<"players">
+        pointsWon: number
+      }[]
+    >()
+    for (const match of allWeekMatches) {
+      const results = await ctx.db
+        .query("matchResults")
+        .withIndex("by_match", (q) => q.eq("matchId", match._id))
         .collect()
+      allResultsByMatch.set(match._id, results)
+    }
 
-      // Accumulate totalPoints per player across all matches in this league
+    for (const oldTier of leagueTiersThisWeek) {
+      const oldLeagueId = await getLeagueId(oldTier)
+      const matches = allWeekMatches.filter((m) => m.leagueId === oldLeagueId)
+
       const pointsMap = new Map<
         import("./_generated/dataModel").Id<"players">,
         number
       >()
 
+      // Aggregate points for each player in the league for the week
       for (const match of matches) {
-        const results = await ctx.db
-          .query("matchResults")
-          .withIndex("by_match", (q) => q.eq("matchId", match._id))
-          .collect()
-
-        for (const result of results) {
-          const current = pointsMap.get(result.playerId) ?? 0
-          pointsMap.set(result.playerId, current + result.pointsWon)
+        for (const result of allResultsByMatch.get(match._id) ?? []) {
+          pointsMap.set(
+            result.playerId,
+            (pointsMap.get(result.playerId) ?? 0) + result.pointsWon
+          )
         }
       }
 
-      // Sort descending by totalPoints to assign finalPlacement
-      const sorted = [...entries].sort((a, b) => {
-        const pointsA = pointsMap.get(a.playerId) ?? 0
-        const pointsB = pointsMap.get(b.playerId) ?? 0
-        return pointsB - pointsA
-      })
+      const sorted = [...pointsMap.entries()].sort(([, a], [, b]) => b - a)
 
-      // Insert weeklyStandings — leagueId/leagueNumber reflect the league they competed in
       let placement = 1
-      for (let i = 0; i < sorted.length; i++) {
-        const { playerId, movement } = sorted[i]
-        const totalPoints = pointsMap.get(playerId) ?? 0
-
-        // Skip players who didn't participate in any matches
-        if (totalPoints === 0 && !pointsMap.has(playerId)) continue
+      for (const [playerId, totalPoints] of sorted) {
         await ctx.db.insert("weeklyStandings", {
           weekId: week!._id,
           weekNumber: args.weekNumber,
           leagueId: oldLeagueId,
           leagueNumber: oldTier,
           playerId,
-          totalPoints: pointsMap.get(playerId) ?? 0,
+          totalPoints,
           finalPlacement: placement,
-          movement,
+          movement: movementMap.get(playerId) ?? "stayed",
         })
         placement++
       }
