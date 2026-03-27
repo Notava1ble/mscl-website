@@ -118,12 +118,11 @@ async function fetchRankedUser(username: string): Promise<UserProfile | null> {
     }
     return msg.data
   } catch (error) {
-    console.error(`Network error for ${username}:`, error) // was silently returning undefined before
+    console.error(`Network error for ${username}:`, error)
     return null
   }
 }
 
-// Replace the Promise.all call
 const allData = await fetchInBatches(
   dedupedNames,
   fetchRankedUser,
