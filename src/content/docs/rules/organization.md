@@ -3,7 +3,7 @@ title: How is the event organized?
 description: An overview of MSCL's structure.
 ---
 
-The event is organized into 6 leagues based on skill levels. Players are seeded into these leagues according to their top ELO from MSCR Ranked and the league's avarage ELO.
+The event is organized into 6 leagues based on skill levels. Players are seeded into these leagues according to their top ELO from MSCR Ranked and the league's avarage peak ELO.
 
 | League | Matches | Time Limits |
 | ------ | ------- | ----------- |
