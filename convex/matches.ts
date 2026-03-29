@@ -168,7 +168,6 @@ export const adjustMatch = internalMutation({
       .withIndex("by_current", (q) => q.eq("isCurrent", true))
       .first()
 
-    // Autocreate week if it doesnt exist
     if (!currentWeek) {
       console.error(
         `[SERVER ERROR] No current week record found. This is impossible so if this error ever shows up, you know something is very wrong.`
@@ -182,7 +181,6 @@ export const adjustMatch = internalMutation({
       .withIndex("by_tier_level", (q) => q.eq("tierLevel", args.leagueTier))
       .first()
 
-    // Autocreate league if it doesnt exist
     if (!league) {
       console.error(
         `[INVALID REQUEST] No league record found for league tier ${args.leagueTier}`
