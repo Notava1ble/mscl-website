@@ -45,6 +45,20 @@ export const MatchSchema = z.object({
   ),
 })
 
+export const AdjustSchema = z.object({
+  matchNumber: z
+    .int("matchNumber must be an integer.")
+    .min(1, "matchNumber must be at least 1."),
+  leagueTier: z
+    .int("leagueTier must be an integer.")
+    .min(1, "leagueTier must be at least 1.")
+    .max(6, "leagueTier must be at most 6."),
+  player: z
+    .string("player must be a string.")
+    .min(1, "player must be at least 1 character long."),
+  points: z.number("points must be a number."),
+})
+
 export const WeekTransitionSchema = z.object({
   weekNumber: z
     .int("weekNumber must be an integer.")

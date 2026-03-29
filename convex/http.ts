@@ -6,6 +6,7 @@ import {
   PlayersSchema,
   MatchSchema,
   WeekTransitionSchema,
+  AdjustSchema,
 } from "./lib/validators"
 
 const http = httpRouter()
@@ -83,6 +84,45 @@ http.route({
 
       console.info(
         `[Success] POST /api/write/match: Ingested match ${matchData.matchNumber} for week ${matchData.weekNumber} (Tier ${matchData.leagueTier})`
+      )
+      return new Response(JSON.stringify(result), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      })
+    } catch (err: any) {
+      console.error(`[Handler Error] POST /api/write/match:`, err)
+      return jsonError(err.message || "Internal server error.", 500)
+    }
+  }),
+})
+
+http.route({
+  path: "/api/write/match/adjust",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    // Validate API key
+    const authError = await validateApiKey(request, "WRITER_API_KEY")
+    if (authError) return authError
+
+    // Extract and validate body
+    const bodyResult = await extractRequestBody(request, AdjustSchema)
+    if ("errorResponse" in bodyResult) return bodyResult.errorResponse
+    const matchData = bodyResult.data
+
+    // Run mutation
+    try {
+      const result = await ctx.runMutation(internal.matches.adjustMatch, {
+        matchNumber: matchData.matchNumber,
+        leagueTier: matchData.leagueTier,
+        player: matchData.player,
+        points: matchData.points,
+      })
+
+      console.info(
+        `[Success] POST /api/write/match: Adjusted points for ${result.playerName} to ${result.points} (Week ${result.weekNumber}, Match ${result.matchNumber}, Tier ${result.leagueTier})`
       )
       return new Response(JSON.stringify(result), {
         status: 200,

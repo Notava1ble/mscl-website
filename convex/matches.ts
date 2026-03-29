@@ -154,6 +154,95 @@ export const ingestMatch = internalMutation({
   },
 })
 
+export const adjustMatch = internalMutation({
+  args: {
+    matchNumber: v.number(),
+    leagueTier: v.number(),
+    player: v.string(),
+    points: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Find target week
+    const currentWeek = await ctx.db
+      .query("weeks")
+      .withIndex("by_current", (q) => q.eq("isCurrent", true))
+      .first()
+
+    // Autocreate week if it doesnt exist
+    if (!currentWeek) {
+      console.error(
+        `[SERVER ERROR] No current week record found. This is impossible so if this error ever shows up, you know something is very wrong.`
+      )
+      throw new Error("Failed to find current week")
+    }
+
+    // Find league
+    let league = await ctx.db
+      .query("leagues")
+      .withIndex("by_tier_level", (q) => q.eq("tierLevel", args.leagueTier))
+      .first()
+
+    // Autocreate league if it doesnt exist
+    if (!league) {
+      console.error(
+        `[INVALID REQUEST] No league record found for league tier ${args.leagueTier}`
+      )
+      throw new Error("Failed to find league")
+    }
+
+    const match = await ctx.db
+      .query("matches")
+      .withIndex("by_week_league_match", (q) =>
+        q
+          .eq("weekId", currentWeek._id)
+          .eq("leagueId", league._id)
+          .eq("matchNumber", args.matchNumber)
+      )
+      .first()
+    if (!match) {
+      console.error(
+        `[INVALID REQUEST] No match record found for match ${args.matchNumber} in league ${args.leagueTier}`
+      )
+      throw new Error("Failed to find match")
+    }
+
+    const player = await ctx.db
+      .query("players")
+      .withIndex("by_name", (q) => q.eq("name", args.player))
+      .first()
+    if (!player) {
+      console.error(
+        `[INVALID REQUEST] No player record found for player ${args.player}`
+      )
+      throw new Error("Failed to find player")
+    }
+
+    const result = await ctx.db
+      .query("matchResults")
+      .withIndex("by_match_and_player", (q) =>
+        q.eq("matchId", match._id).eq("playerId", player._id)
+      )
+      .first()
+    if (!result) {
+      console.error(
+        `[INVALID REQUEST] No match result record found for match ${args.matchNumber} in league ${args.leagueTier}`
+      )
+      throw new Error("Failed to find match result")
+    }
+
+    await ctx.db.patch(result._id, { pointsWon: args.points })
+
+    return {
+      success: true,
+      weekNumber: currentWeek.weekNumber,
+      matchNumber: match.matchNumber,
+      leagueTier: league.tierLevel,
+      playerName: player.name,
+      points: args.points,
+    }
+  },
+})
+
 export const listPlayerMatches = internalQuery({
   args: {
     playerName: v.string(),
