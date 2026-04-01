@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Tooltip,
   TooltipContent,
@@ -67,6 +67,8 @@ type MatchAPIResponseType = {
     | string
     | "Too many requests"
 }
+
+type MatchPayload = Exclude<MatchAPIResponseType["data"], null | string>
 
 const formatTime = (ms: number) => {
   if (ms === 0) return "0:00.00"
@@ -137,39 +139,97 @@ const phaseNames: Record<Phase | "forfeit", string> = {
   forfeit: "Forfeited",
 }
 
+const matchDataCache = new Map<string, MatchAPIResponseType["data"] | null>()
+
 const MatchData = ({ matchId }: { matchId: string | null }) => {
   const [matchData, setMatchData] = useState<
     MatchAPIResponseType["data"] | null | undefined
   >(undefined)
 
-  const fetchMatchData = useCallback(async () => {
-    if (!matchId) return
-    try {
-      const response = await fetch(
-        `https://api.mcsrranked.com/matches/${matchId}`
-      )
-      const data: MatchAPIResponseType = await response.json()
-      setMatchData(data.data ?? null)
-    } catch (error) {
-      console.error("Error fetching match data:", error)
+  useEffect(() => {
+    if (!matchId) {
+      setMatchData(undefined)
+      return
+    }
+
+    const cached = matchDataCache.get(matchId)
+    if (cached !== undefined) {
+      setMatchData(cached)
+      return
+    }
+
+    const controller = new AbortController()
+    let cancelled = false
+
+    setMatchData(undefined)
+
+    ;(async () => {
+      try {
+        const response = await fetch(
+          `https://api.mcsrranked.com/matches/${matchId}`,
+          { signal: controller.signal }
+        )
+        const data: MatchAPIResponseType = await response.json()
+        const payload = data.data ?? null
+        matchDataCache.set(matchId, payload)
+        if (!cancelled) {
+          setMatchData(payload)
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
+        console.error("Error fetching match data:", error)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      controller.abort()
     }
   }, [matchId])
 
-  useEffect(() => {
-    fetchMatchData()
-  }, [fetchMatchData])
+  const playerDataIndexes = useMemo(() => {
+    if (!matchData || typeof matchData === "string") return null
+
+    const timelinesByUuid = new Map<
+      string,
+      MatchPayload["timelines"]
+    >()
+    for (const timeline of matchData.timelines) {
+      const current = timelinesByUuid.get(timeline.uuid)
+      if (current) {
+        current.push(timeline)
+      } else {
+        timelinesByUuid.set(timeline.uuid, [timeline])
+      }
+    }
+    for (const timelines of timelinesByUuid.values()) {
+      timelines.sort((a, b) => a.time - b.time)
+    }
+
+    const completionsByUuid = new Map(
+      (matchData.completions ?? []).map((completion) => [
+        completion.uuid,
+        completion,
+      ])
+    )
+
+    return {
+      timelinesByUuid,
+      completionsByUuid,
+    }
+  }, [matchData])
 
   const processedPlayers = useMemo(() => {
-    if (!matchData || typeof matchData === "string") return []
+    if (!matchData || typeof matchData === "string" || !playerDataIndexes) {
+      return []
+    }
 
     const playersWithRawData = matchData.players.map((player) => {
-      const pTimelines = matchData.timelines
-        .filter((t) => t.uuid === player.uuid)
-        .sort((a, b) => a.time - b.time)
+      const pTimelines = playerDataIndexes.timelinesByUuid.get(player.uuid) ?? []
 
-      const completion = matchData.completions?.find(
-        (c) => c.uuid === player.uuid
-      )
+      const completion = playerDataIndexes.completionsByUuid.get(player.uuid)
       const finishEvent = pTimelines.find(
         (t) => t.type === "projectelo.timeline.complete"
       )
@@ -241,7 +301,7 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
         if (a.isFinished && b.isFinished) return a.finalTime - b.finalTime
         return b.finalTime - a.finalTime
       })
-  }, [matchData])
+  }, [matchData, playerDataIndexes])
 
   if (!matchId) return <div>No match ID provided.</div>
   if (matchData === undefined) return <div>Loading match data...</div>

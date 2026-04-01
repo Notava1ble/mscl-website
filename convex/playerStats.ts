@@ -24,6 +24,18 @@ export const getPlayerStats = query({
     >()
 
     for (const registration of registrations) {
+      if (
+        registration.weekNumber !== undefined &&
+        registration.leagueTier !== undefined
+      ) {
+        competitionsById.set(registration.competitionId, {
+          competitionId: registration.competitionId,
+          leagueTier: registration.leagueTier,
+          weekNumber: registration.weekNumber,
+        })
+        continue
+      }
+
       const competition = await ctx.db.get(registration.competitionId)
       if (!competition) continue
       competitionsById.set(registration.competitionId, {
@@ -73,15 +85,39 @@ export const getPlayerStats = query({
     >()
 
     for (const result of playerResults) {
-      const match = await ctx.db.get(result.matchId)
-      if (!match) continue
+      const matchNumber =
+        result.matchNumber ??
+        (await ctx.db.get(result.matchId))?.matchNumber ??
+        null
+      const competitionId =
+        result.competitionId ??
+        (await ctx.db.get(result.matchId))?.competitionId ??
+        null
+      const competition =
+        competitionId !== null
+          ? competitionsById.get(competitionId) ??
+            (() => null)()
+          : null
 
-      const competition = await ctx.db.get(match.competitionId)
-      if (!competition) continue
+      if (competitionId !== null && competition === null) {
+        const match = await ctx.db.get(result.matchId)
+        if (!match) continue
+        const fullCompetition = await ctx.db.get(match.competitionId)
+        if (!fullCompetition) continue
+        competitionsById.set(match.competitionId, {
+          competitionId: match.competitionId,
+          leagueTier: fullCompetition.leagueTier,
+          weekNumber: fullCompetition.weekNumber,
+        })
+      }
 
-      const existingWeek = weeklyBreakdown.get(competition.weekNumber) ?? {
-        weekNumber: competition.weekNumber,
-        leagueNumber: competition.leagueTier,
+      const effectiveCompetition =
+        competitionId !== null ? competitionsById.get(competitionId) : null
+      if (!effectiveCompetition || matchNumber === null) continue
+
+      const existingWeek = weeklyBreakdown.get(effectiveCompetition.weekNumber) ?? {
+        weekNumber: effectiveCompetition.weekNumber,
+        leagueNumber: effectiveCompetition.leagueTier,
         matches: 0,
         totalPoints: 0,
         totalTimeMs: 0,
@@ -97,15 +133,15 @@ export const getPlayerStats = query({
       }
 
       existingWeek.matchDetails.push({
-        matchId: match._id,
-        matchNumber: match.matchNumber,
+        matchId: result.matchId,
+        matchNumber,
         placement: result.placement,
         pointsWon: result.pointsWon,
         timeMs: result.timeMs,
         dnf: result.dnf,
       })
 
-      weeklyBreakdown.set(competition.weekNumber, existingWeek)
+      weeklyBreakdown.set(effectiveCompetition.weekNumber, existingWeek)
     }
 
     const weeks = Array.from(weeklyBreakdown.values())

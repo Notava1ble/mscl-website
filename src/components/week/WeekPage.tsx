@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import ConvexClientProvider from "@/components/ConvexClientProvider"
@@ -6,7 +6,6 @@ import { WeekSelector } from "./WeekSelector"
 import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
 import { MatchesList } from "./MatchesList"
-import { DetailsPanel } from "./DetailsPanel"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -15,6 +14,24 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer"
+
+const LazyDetailsPanel = lazy(async () => {
+  const module = await import("./DetailsPanel")
+  return { default: module.DetailsPanel }
+})
+
+function DetailsPanelFallback({ showBorder = true }: { showBorder?: boolean }) {
+  return (
+    <div
+      className={[
+        "min-h-75 p-6 text-sm text-muted-foreground",
+        showBorder ? "rounded-3xl border border-border" : "",
+      ].join(" ")}
+    >
+      Loading details...
+    </div>
+  )
+}
 
 function WeekContent() {
   const isMobile = useIsMobile()
@@ -31,6 +48,14 @@ function WeekContent() {
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isUrlInitialized, setIsUrlInitialized] = useState(false)
+  const weekNumbers = useMemo(
+    () => new Set((weeks ?? []).map((week) => week.weekNumber)),
+    [weeks]
+  )
+  const leagueTiers = useMemo(
+    () => new Set((leagues ?? []).map((league) => league.leagueTier)),
+    [leagues]
+  )
 
   useEffect(() => {
     if (
@@ -51,19 +76,19 @@ function WeekContent() {
     const parsedLeague = urlLeague ? Number.parseInt(urlLeague, 10) : Number.NaN
 
     if (Number.isFinite(parsedWeek)) {
-      const matchedWeek = weeks.find((week) => week.weekNumber === parsedWeek)
-      if (matchedWeek) setSelectedWeekNumber(matchedWeek.weekNumber)
+      if (weekNumbers.has(parsedWeek)) {
+        setSelectedWeekNumber(parsedWeek)
+      }
     }
 
     if (Number.isFinite(parsedLeague)) {
-      const matchedLeague = leagues.find(
-        (league) => league.leagueTier === parsedLeague
-      )
-      if (matchedLeague) setSelectedLeagueTier(matchedLeague.leagueTier)
+      if (leagueTiers.has(parsedLeague)) {
+        setSelectedLeagueTier(parsedLeague)
+      }
     }
 
     setIsUrlInitialized(true)
-  }, [weeks, leagues, isUrlInitialized])
+  }, [weeks, leagues, isUrlInitialized, weekNumbers, leagueTiers])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -82,15 +107,11 @@ function WeekContent() {
       const parsedLeague = urlLeague ? Number.parseInt(urlLeague, 10) : Number.NaN
 
       setSelectedWeekNumber(
-        Number.isFinite(parsedWeek) &&
-          weeks.some((week) => week.weekNumber === parsedWeek)
-          ? parsedWeek
-          : null
+        Number.isFinite(parsedWeek) && weekNumbers.has(parsedWeek) ? parsedWeek : null
       )
 
       setSelectedLeagueTier(
-        Number.isFinite(parsedLeague) &&
-          leagues.some((league) => league.leagueTier === parsedLeague)
+        Number.isFinite(parsedLeague) && leagueTiers.has(parsedLeague)
           ? parsedLeague
           : null
       )
@@ -98,7 +119,7 @@ function WeekContent() {
 
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [weeks, leagues])
+  }, [weeks, leagues, weekNumbers, leagueTiers])
 
   const onDrawerChange = (open: boolean) => {
     setIsDrawerOpen(open)
@@ -108,23 +129,27 @@ function WeekContent() {
     }
   }
 
-  const effectiveSelectedWeekNumber =
-    (selectedWeekNumber !== null &&
-    weeks?.some((week) => week.weekNumber === selectedWeekNumber)
-      ? selectedWeekNumber
-      : null) ??
-    weeks?.find((week) => week.isActive)?.weekNumber ??
-    weeks?.[0]?.weekNumber ??
-    null
+  const effectiveSelectedWeekNumber = useMemo(
+    () =>
+      (selectedWeekNumber !== null && weekNumbers.has(selectedWeekNumber)
+        ? selectedWeekNumber
+        : null) ??
+      weeks?.find((week) => week.isActive)?.weekNumber ??
+      weeks?.[0]?.weekNumber ??
+      null,
+    [selectedWeekNumber, weekNumbers, weeks]
+  )
 
-  const effectiveSelectedLeagueTier =
-    (selectedLeagueTier !== null &&
-    leagues?.some((league) => league.leagueTier === selectedLeagueTier)
-      ? selectedLeagueTier
-      : null) ??
-    leagues?.find((league) => league.leagueTier === 1)?.leagueTier ??
-    leagues?.[0]?.leagueTier ??
-    null
+  const effectiveSelectedLeagueTier = useMemo(
+    () =>
+      (selectedLeagueTier !== null && leagueTiers.has(selectedLeagueTier)
+        ? selectedLeagueTier
+        : null) ??
+      leagues?.find((league) => league.leagueTier === 1)?.leagueTier ??
+      leagues?.[0]?.leagueTier ??
+      null,
+    [selectedLeagueTier, leagueTiers, leagues]
+  )
 
   const standings = useQuery(
     api.weekView.getWeekStandings,
@@ -197,23 +222,48 @@ function WeekContent() {
     }
   }
 
-  const selectedPlayer = standings?.find((standing) => standing.playerId === selectedPlayerId)
-  const selectedMatch = matches?.find((match) => match._id === selectedMatchId)
+  const standingsByPlayerId = useMemo(
+    () =>
+      new Map(
+        (standings ?? []).map((standing) => [String(standing.playerId), standing])
+      ),
+    [standings]
+  )
+  const matchesById = useMemo(
+    () => new Map((matches ?? []).map((match) => [String(match._id), match])),
+    [matches]
+  )
+  const selectedPlayer =
+    selectedPlayerId !== null ? standingsByPlayerId.get(selectedPlayerId) : null
+  const selectedMatch =
+    selectedMatchId !== null ? matchesById.get(selectedMatchId) : null
 
-  const detailsPanelProps = {
-    weekNumber: effectiveSelectedWeekNumber,
-    leagueTier: effectiveSelectedLeagueTier,
-    playerId: selectedPlayerId,
-    matchId: selectedMatchId,
-    rankedMatchId: selectedMatch?.rankedMatchId ?? null,
-    playerStats: selectedPlayer
-      ? {
-          name: selectedPlayer.name,
-          totalPoints: selectedPlayer.totalPoints,
-          rank: selectedPlayer.rank,
-        }
-      : null,
-  }
+  const detailsPanelProps = useMemo(
+    () => ({
+      weekNumber: effectiveSelectedWeekNumber,
+      leagueTier: effectiveSelectedLeagueTier,
+      playerId: selectedPlayerId,
+      matchId: selectedMatchId,
+      rankedMatchId: selectedMatch?.rankedMatchId ?? null,
+      playerStats: selectedPlayer
+        ? {
+            name: selectedPlayer.name,
+            totalPoints: selectedPlayer.totalPoints,
+            rank: selectedPlayer.rank,
+          }
+        : null,
+    }),
+    [
+      effectiveSelectedLeagueTier,
+      effectiveSelectedWeekNumber,
+      selectedMatch,
+      selectedMatchId,
+      selectedPlayer,
+      selectedPlayerId,
+    ]
+  )
+  const hasDetailsSelection =
+    detailsPanelProps.playerId !== null || detailsPanelProps.matchId !== null
 
   return (
     <div className="min-h-screen bg-background pt-20 pb-24 font-sans text-foreground md:pt-28">
@@ -279,7 +329,11 @@ function WeekContent() {
                   </DrawerTitle>
                 </DrawerHeader>
                 <div className="h-full overflow-y-auto px-6 py-4 pb-12">
-                  <DetailsPanel {...detailsPanelProps} showBorder={false} />
+                  {hasDetailsSelection ? (
+                    <Suspense fallback={<DetailsPanelFallback showBorder={false} />}>
+                      <LazyDetailsPanel {...detailsPanelProps} showBorder={false} />
+                    </Suspense>
+                  ) : null}
                 </div>
               </DrawerContent>
             </Drawer>
@@ -305,7 +359,11 @@ function WeekContent() {
             </div>
 
             <div className="sticky top-24 w-125 shrink-0">
-              <DetailsPanel {...detailsPanelProps} />
+              {hasDetailsSelection ? (
+                <Suspense fallback={<DetailsPanelFallback />}>
+                  <LazyDetailsPanel {...detailsPanelProps} />
+                </Suspense>
+              ) : null}
             </div>
           </div>
         )}

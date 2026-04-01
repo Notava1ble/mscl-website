@@ -1,5 +1,9 @@
 import { v } from "convex/values"
 import { internalMutation, internalQuery, query } from "./_generated/server"
+import {
+  ensureLeague,
+  syncPlayerRegistrationSnapshots,
+} from "./lib/readModels"
 
 export const listPlayersInLeague = query({
   args: {
@@ -42,11 +46,12 @@ export const createOrUpdatePlayers = internalMutation({
   handler: async (ctx, args) => {
     for (const player of args.players) {
       const lowercaseIgn = player.ign.toLowerCase()
+      await ensureLeague(ctx, player.leagueTier)
 
       const existingByDiscord = await ctx.db
         .query("players")
-        .filter((q) => q.eq(q.field("discordId"), player.discordId))
-        .first()
+        .withIndex("by_discord_id", (q) => q.eq("discordId", player.discordId))
+        .unique()
 
       if (existingByDiscord) {
         await ctx.db.patch(existingByDiscord._id, {
@@ -56,6 +61,10 @@ export const createOrUpdatePlayers = internalMutation({
           elo: player.elo,
           currentLeagueNumber: player.leagueTier,
         })
+        const updatedPlayer = await ctx.db.get(existingByDiscord._id)
+        if (updatedPlayer) {
+          await syncPlayerRegistrationSnapshots(ctx, updatedPlayer._id, updatedPlayer)
+        }
         continue
       }
 

@@ -11,6 +11,7 @@
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as leagues from "../leagues.js";
+import type * as lib_readModels from "../lib/readModels.js";
 import type * as lib_utils from "../lib/utils.js";
 import type * as lib_validators from "../lib/validators.js";
 import type * as matches from "../matches.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   leaderboard: typeof leaderboard;
   leagues: typeof leagues;
+  "lib/readModels": typeof lib_readModels;
   "lib/utils": typeof lib_utils;
   "lib/validators": typeof lib_validators;
   matches: typeof matches;

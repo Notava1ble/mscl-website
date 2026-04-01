@@ -1,6 +1,15 @@
 import { v } from "convex/values"
 import type { Doc, Id } from "./_generated/dataModel"
 import { internalMutation, type MutationCtx } from "./_generated/server"
+import {
+  applyWeekCompetitionDelta,
+  buildMatchResultSnapshot,
+  buildRegistrationSnapshot,
+  ensureLeague,
+  ensureWeekHasActiveCompetition,
+  getPlayerByDiscordId as lookupPlayerByDiscordId,
+  syncPlayerRegistrationSnapshots,
+} from "./lib/readModels"
 
 type ApiSuccess<T extends Record<string, unknown> = Record<string, never>> = {
   ok: true
@@ -43,10 +52,7 @@ async function getPlayerByDiscordId(
   ctx: MutationCtx,
   discordId: string
 ): Promise<PlayerDoc | null> {
-  for await (const player of ctx.db.query("players")) {
-    if (player.discordId === discordId) return player
-  }
-  return null
+  return await lookupPlayerByDiscordId(ctx, discordId)
 }
 
 async function getMatch(
@@ -185,6 +191,23 @@ function buildPlayerPatch(args: {
   return patch
 }
 
+function buildMatchWinnerPatch(
+  players: Array<{ player: PlayerDoc; placement: number | null }>
+) {
+  const winner = players
+    .filter((entry) => entry.placement !== null)
+    .sort(
+      (a, b) =>
+        (a.placement ?? Number.MAX_SAFE_INTEGER) -
+        (b.placement ?? Number.MAX_SAFE_INTEGER)
+    )[0]
+
+  return {
+    winnerPlayerId: winner?.player._id ?? null,
+    winnerName: winner?.player.ign ?? null,
+  }
+}
+
 export const createOrRestartCompetition = internalMutation({
   args: {
     leagueTier: v.number(),
@@ -204,6 +227,7 @@ export const createOrRestartCompetition = internalMutation({
       deletedMatchResults?: number
     }>
   > => {
+    await ensureLeague(ctx, args.leagueTier)
     const existingCompetition = await getCompetition(
       ctx,
       args.leagueTier,
@@ -216,6 +240,7 @@ export const createOrRestartCompetition = internalMutation({
 
     if (existingCompetition?.status === "active") {
       const deleted = await deleteCompetitionData(ctx, existingCompetition._id)
+      await ensureWeekHasActiveCompetition(ctx, args.weekNumber)
       await ctx.db.patch(existingCompetition._id, {
         startingTime: args.startingTime,
         maxTimeLimitMs: args.maxTimeLimitMs,
@@ -237,6 +262,7 @@ export const createOrRestartCompetition = internalMutation({
       maxTimeLimitMs: args.maxTimeLimitMs,
       startingTime: args.startingTime,
     })
+    await applyWeekCompetitionDelta(ctx, args.weekNumber, 1)
 
     return {
       ok: true,
@@ -267,7 +293,16 @@ export const updateCompetitionStatus = internalMutation({
       return fail(404, "Competition not found.")
     }
 
+    if (competition.status === args.status) {
+      return { ok: true, competitionId: competition._id, status: args.status }
+    }
+
     await ctx.db.patch(competition._id, { status: args.status })
+    await applyWeekCompetitionDelta(
+      ctx,
+      competition.weekNumber,
+      args.status === "active" ? 1 : -1
+    )
     return { ok: true, competitionId: competition._id, status: args.status }
   },
 })
@@ -291,6 +326,7 @@ export const registerPlayer = internalMutation({
       registrationCreated: boolean
     }>
   > => {
+    await ensureLeague(ctx, args.leagueTier)
     const competition = await getCompetition(
       ctx,
       args.leagueTier,
@@ -314,6 +350,7 @@ export const registerPlayer = internalMutation({
           currentLeagueNumber: args.leagueTier,
         })
       )
+      player = await ctx.db.get(player._id)
     } else {
       const playerId = await ctx.db.insert("players", {
         discordId: args.discordId,
@@ -329,6 +366,12 @@ export const registerPlayer = internalMutation({
       }
     }
 
+    if (!player) {
+      return fail(500, "Player could not be loaded.")
+    }
+
+    await syncPlayerRegistrationSnapshots(ctx, player._id, player)
+
     const existingRegistration = await getRegistration(
       ctx,
       competition._id,
@@ -343,8 +386,13 @@ export const registerPlayer = internalMutation({
         manualAdjustmentPoints: 0,
         computedSeedPoints: 0,
         totalPoints: 0,
+        ...buildRegistrationSnapshot(player, competition),
       })
       registrationCreated = true
+    } else {
+      await ctx.db.patch(existingRegistration._id, {
+        ...buildRegistrationSnapshot(player, competition),
+      })
     }
 
     return {
@@ -394,25 +442,40 @@ export const unregisterPlayer = internalMutation({
     await ctx.db.delete(registration._id)
 
     let deletedMatchResults = 0
+    while (true) {
+      const batch = await ctx.db
+        .query("matchResults")
+        .withIndex("by_player_and_competition", (q) =>
+          q.eq("playerId", player._id).eq("competitionId", competition._id)
+        )
+        .take(128)
+
+      if (batch.length === 0) break
+
+      for (const matchResult of batch) {
+        await ctx.db.delete(matchResult._id)
+        deletedMatchResults += 1
+      }
+    }
+
     const matches = await ctx.db
       .query("matches")
       .withIndex("by_competition_match", (q) =>
         q.eq("competitionId", competition._id)
       )
-      .take(256)
+      .collect()
 
     for (const match of matches) {
-      const matchResult = await ctx.db
+      const legacyResult = await ctx.db
         .query("matchResults")
         .withIndex("by_match_and_player", (q) =>
           q.eq("matchId", match._id).eq("playerId", player._id)
         )
         .unique()
 
-      if (matchResult) {
-        await ctx.db.delete(matchResult._id)
-        deletedMatchResults += 1
-      }
+      if (!legacyResult) continue
+      await ctx.db.delete(legacyResult._id)
+      deletedMatchResults += 1
     }
 
     return {
@@ -462,6 +525,8 @@ export const createEmptyMatch = internalMutation({
     const matchId = await ctx.db.insert("matches", {
       competitionId: competition._id,
       matchNumber: args.matchNumber,
+      winnerPlayerId: null,
+      winnerName: null,
     })
 
     return {
@@ -517,6 +582,10 @@ export const clearMatchResults = internalMutation({
     }
 
     const deleted = await deleteMatchResultsForMatch(ctx, match._id)
+    await ctx.db.patch(match._id, {
+      winnerPlayerId: null,
+      winnerName: null,
+    })
 
     for (const [playerId, deletedPoints] of deletedPointsByPlayer) {
       await applyRegistrationPointDelta(
@@ -571,12 +640,12 @@ export const importMatchData = internalMutation({
       return fail(404, "Competition not found.")
     }
 
-    const duplicateDiscordId = args.results.find(
-      (result, index) =>
-        args.results.findIndex(
-          (entry) => entry.discordId === result.discordId
-        ) !== index
-    )
+    const seenDiscordIds = new Set<string>()
+    const duplicateDiscordId = args.results.find((result) => {
+      if (seenDiscordIds.has(result.discordId)) return true
+      seenDiscordIds.add(result.discordId)
+      return false
+    })
     if (duplicateDiscordId) {
       return fail(
         400,
@@ -595,6 +664,8 @@ export const importMatchData = internalMutation({
         competitionId: competition._id,
         matchNumber: args.matchNumber,
         rankedMatchId: args.rankedMatchId,
+        winnerPlayerId: null,
+        winnerName: null,
       })
       match = await ctx.db.get(matchId)
     }
@@ -604,6 +675,10 @@ export const importMatchData = internalMutation({
     }
 
     const pointDeltasByPlayer = new Map<Id<"players">, number>()
+    const playersForWinner: Array<{
+      player: PlayerDoc
+      placement: number | null
+    }> = []
     for (const result of args.results) {
       const player = await getPlayerByDiscordId(ctx, result.discordId)
       if (!player) {
@@ -618,6 +693,11 @@ export const importMatchData = internalMutation({
         )
       }
 
+      playersForWinner.push({
+        player,
+        placement: result.placement,
+      })
+
       const existingResult = await ctx.db
         .query("matchResults")
         .withIndex("by_match_and_player", (q) =>
@@ -628,6 +708,7 @@ export const importMatchData = internalMutation({
       if (existingResult) {
         const pointDelta = result.pointsWon - existingResult.pointsWon
         await ctx.db.patch(existingResult._id, {
+          ...buildMatchResultSnapshot(competition, match.matchNumber),
           timeMs: result.timeMs,
           dnf: result.dnf,
           placement: result.placement,
@@ -641,6 +722,7 @@ export const importMatchData = internalMutation({
         await ctx.db.insert("matchResults", {
           matchId: match._id,
           playerId: player._id,
+          ...buildMatchResultSnapshot(competition, match.matchNumber),
           timeMs: result.timeMs,
           dnf: result.dnf,
           placement: result.placement,
@@ -662,6 +744,8 @@ export const importMatchData = internalMutation({
         pointDelta
       )
     }
+
+    await ctx.db.patch(match._id, buildMatchWinnerPatch(playersForWinner))
 
     return {
       ok: true,
@@ -802,8 +886,9 @@ export const processMovements = internalMutation({
       return fail(404, "Competition not found.")
     }
 
+    const demotedLookup = new Set(args.demotedDiscordIds)
     const overlap = args.promotedDiscordIds.filter((discordId) =>
-      args.demotedDiscordIds.includes(discordId)
+      demotedLookup.has(discordId)
     )
     if (overlap.length > 0) {
       return fail(
@@ -831,6 +916,7 @@ export const processMovements = internalMutation({
         return fail(404, `Registration not found for discordId ${discordId}.`)
       }
 
+      await ensureLeague(ctx, Math.max(1, args.leagueTier - 1))
       await ctx.db.patch(player._id, {
         currentLeagueNumber: Math.max(1, args.leagueTier - 1),
       })
@@ -853,6 +939,7 @@ export const processMovements = internalMutation({
         return fail(404, `Registration not found for discordId ${discordId}.`)
       }
 
+      await ensureLeague(ctx, args.leagueTier + 1)
       await ctx.db.patch(player._id, {
         currentLeagueNumber: args.leagueTier + 1,
       })
@@ -865,7 +952,7 @@ export const processMovements = internalMutation({
       .withIndex("by_competition", (q) =>
         q.eq("competitionId", competition._id)
       )
-      .take(512)
+      .collect()
 
     let unchangedCount = 0
     for (const registration of registrations) {

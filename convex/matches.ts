@@ -1,10 +1,15 @@
 import { v } from "convex/values"
+import type { Doc } from "./_generated/dataModel"
 import {
   internalMutation,
   internalQuery,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server"
+import {
+  buildMatchResultSnapshot,
+  getPlayerByDiscordId as lookupPlayerByDiscordId,
+} from "./lib/readModels"
 
 async function getCompetition(
   ctx: MutationCtx | QueryCtx,
@@ -17,6 +22,30 @@ async function getCompetition(
       q.eq("leagueTier", leagueTier).eq("weekNumber", weekNumber)
     )
     .unique()
+}
+
+async function getPlayerByDiscordId(
+  ctx: MutationCtx | QueryCtx,
+  discordId: string
+) {
+  return await lookupPlayerByDiscordId(ctx, discordId)
+}
+
+function buildMatchWinnerPatch(
+  players: Array<{ player: Doc<"players">; placement: number | null }>
+) {
+  const winner = players
+    .filter((entry) => entry.placement !== null)
+    .sort(
+      (a, b) =>
+        (a.placement ?? Number.MAX_SAFE_INTEGER) -
+        (b.placement ?? Number.MAX_SAFE_INTEGER)
+    )[0]
+
+  return {
+    winnerPlayerId: winner?.player._id ?? null,
+    winnerName: winner?.player.ign ?? null,
+  }
 }
 
 export const ingestMatch = internalMutation({
@@ -57,6 +86,8 @@ export const ingestMatch = internalMutation({
         competitionId: competition._id,
         matchNumber: args.matchNumber,
         rankedMatchId: args.rankedMatchId,
+        winnerPlayerId: null,
+        winnerName: null,
       })
       match = await ctx.db.get(matchId)
     } else if (match.rankedMatchId !== args.rankedMatchId) {
@@ -67,15 +98,21 @@ export const ingestMatch = internalMutation({
       throw new Error("Failed to create match")
     }
 
+    const playersForWinner: Array<{
+      player: Doc<"players">
+      placement: number | null
+    }> = []
     for (const result of args.results) {
-      const player = await ctx.db
-        .query("players")
-        .filter((q) => q.eq(q.field("discordId"), result.discordId))
-        .first()
+      const player = await getPlayerByDiscordId(ctx, result.discordId)
 
       if (!player) {
         throw new Error(`Player not found for discordId ${result.discordId}`)
       }
+
+      playersForWinner.push({
+        player,
+        placement: result.placement,
+      })
 
       const existingResult = await ctx.db
         .query("matchResults")
@@ -86,6 +123,7 @@ export const ingestMatch = internalMutation({
 
       if (existingResult) {
         await ctx.db.patch(existingResult._id, {
+          ...buildMatchResultSnapshot(competition, match.matchNumber),
           timeMs: result.timeMs,
           dnf: result.dnf,
           placement: result.placement,
@@ -95,6 +133,7 @@ export const ingestMatch = internalMutation({
         await ctx.db.insert("matchResults", {
           matchId: match._id,
           playerId: player._id,
+          ...buildMatchResultSnapshot(competition, match.matchNumber),
           timeMs: result.timeMs,
           dnf: result.dnf,
           placement: result.placement,
@@ -102,6 +141,8 @@ export const ingestMatch = internalMutation({
         })
       }
     }
+
+    await ctx.db.patch(match._id, buildMatchWinnerPatch(playersForWinner))
 
     return {
       success: true,
@@ -140,10 +181,7 @@ export const adjustMatch = internalMutation({
       throw new Error("Match not found")
     }
 
-    const player = await ctx.db
-      .query("players")
-      .filter((q) => q.eq(q.field("discordId"), args.discordId))
-      .first()
+    const player = await getPlayerByDiscordId(ctx, args.discordId)
     if (!player) {
       throw new Error("Player not found")
     }
@@ -175,22 +213,17 @@ export const listPlayerMatches = internalQuery({
     weekNumber: v.number(),
   },
   handler: async (ctx, args) => {
-    const player = await ctx.db
-      .query("players")
-      .filter((q) => q.eq(q.field("discordId"), args.discordId))
-      .first()
+    const player = await getPlayerByDiscordId(ctx, args.discordId)
     if (!player) {
       throw new Error("Player not found")
     }
 
-    const competitions = await ctx.db
+    const competition = await ctx.db
       .query("competitions")
-      .withIndex("by_week_number", (q) => q.eq("weekNumber", args.weekNumber))
-      .collect()
-
-    const competition = competitions.find(
-      (entry) => entry.leagueTier === player.currentLeagueNumber
-    )
+      .withIndex("by_league_and_week", (q) =>
+        q.eq("leagueTier", player.currentLeagueNumber).eq("weekNumber", args.weekNumber)
+      )
+      .unique()
     if (!competition) {
       return {
         playerName: player.ign,
@@ -200,35 +233,35 @@ export const listPlayerMatches = internalQuery({
       }
     }
 
-    const matchesThisWeek = await ctx.db
-      .query("matches")
-      .withIndex("by_competition_match", (q) =>
-        q.eq("competitionId", competition._id)
-      )
-      .collect()
+    const matchesById = new Map(
+      (
+        await ctx.db
+          .query("matches")
+          .withIndex("by_competition_match", (q) =>
+            q.eq("competitionId", competition._id)
+          )
+          .collect()
+      ).map((match) => [match._id, match])
+    )
 
     const matches = (
-      await Promise.all(
-        matchesThisWeek.map(async (match) => {
-          const result = await ctx.db
-            .query("matchResults")
-            .withIndex("by_match_and_player", (q) =>
-              q.eq("matchId", match._id).eq("playerId", player._id)
-            )
-            .unique()
-
-          if (!result) return null
-
-          return {
-            rankedMatchId: match.rankedMatchId ?? null,
-            pointsWon: result.pointsWon,
-            timeMs: result.timeMs,
-            placement: result.placement,
-            dnf: result.dnf,
-          }
-        })
+      await ctx.db
+        .query("matchResults")
+        .withIndex("by_player_and_competition", (q) =>
+          q.eq("playerId", player._id).eq("competitionId", competition._id)
+        )
+        .collect()
+    )
+      .sort(
+        (a, b) => (a.matchNumber ?? Number.MAX_SAFE_INTEGER) - (b.matchNumber ?? Number.MAX_SAFE_INTEGER)
       )
-    ).filter((entry) => entry !== null)
+      .map((result) => ({
+        rankedMatchId: matchesById.get(result.matchId)?.rankedMatchId ?? null,
+        pointsWon: result.pointsWon,
+        timeMs: result.timeMs,
+        placement: result.placement,
+        dnf: result.dnf,
+      }))
 
     return {
       playerName: player.ign,

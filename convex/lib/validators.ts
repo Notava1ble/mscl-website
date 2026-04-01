@@ -97,8 +97,9 @@ export const MovementSchema = z
     ),
   })
   .superRefine((value, ctx) => {
+    const demotedLookup = new Set(value.demotedDiscordIds)
     const overlap = value.promotedDiscordIds.filter((discordId) =>
-      value.demotedDiscordIds.includes(discordId)
+      demotedLookup.has(discordId)
     )
     if (overlap.length > 0) {
       ctx.addIssue({

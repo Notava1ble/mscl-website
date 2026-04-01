@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback } from "react"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { CustomButton } from "@/components/ui-custom/Button"
 import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
-import { PlayerStatsPanel } from "./PlayerStatsPanel"
 import ConvexClientProvider from "@/components/ConvexClientProvider"
+
+const LazyPlayerStatsPanel = lazy(async () => {
+  const module = await import("./PlayerStatsPanel")
+  return { default: module.PlayerStatsPanel }
+})
 
 function LeaderboardContent() {
   const leagues = useQuery(api.leagues.listLeagues)
@@ -15,6 +19,10 @@ function LeaderboardContent() {
   )
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [playerPanelOpen, setPlayerPanelOpen] = useState(false)
+  const leagueTiers = useMemo(
+    () => new Set((leagues ?? []).map((league) => league.leagueTier)),
+    [leagues]
+  )
 
   useEffect(() => {
     if (!leagues || leagues.length === 0 || selectedLeagueTier !== null) return
@@ -23,12 +31,12 @@ function LeaderboardContent() {
     const tierParam = params.get("league")
     const parsedTier = tierParam ? Number(tierParam) : Number.NaN
 
-    const matched = Number.isFinite(parsedTier)
-      ? leagues.find((league) => league.leagueTier === parsedTier)
-      : null
-
-    setSelectedLeagueTier(matched?.leagueTier ?? leagues[0].leagueTier)
-  }, [leagues, selectedLeagueTier])
+    setSelectedLeagueTier(
+      Number.isFinite(parsedTier) && leagueTiers.has(parsedTier)
+        ? parsedTier
+        : leagues[0].leagueTier
+    )
+  }, [leagues, selectedLeagueTier, leagueTiers])
 
   const onLeagueSelect = useCallback((leagueTier: number) => {
     setSelectedLeagueTier(leagueTier)
@@ -44,8 +52,9 @@ function LeaderboardContent() {
     selectedLeagueTier !== null ? { leagueTier: selectedLeagueTier } : "skip"
   )
 
-  const selectedLeague = leagues?.find(
-    (league) => league.leagueTier === selectedLeagueTier
+  const selectedLeague = useMemo(
+    () => leagues?.find((league) => league.leagueTier === selectedLeagueTier),
+    [leagues, selectedLeagueTier]
   )
 
   function handlePlayerClick(playerId: string) {
@@ -102,14 +111,18 @@ function LeaderboardContent() {
       </div>
 
       {/* Player Stats Panel */}
-      <PlayerStatsPanel
-        playerId={selectedPlayerId ? (selectedPlayerId as Id<"players">) : null}
-        open={playerPanelOpen}
-        onClose={() => {
-          setPlayerPanelOpen(false)
-          setSelectedPlayerId(null)
-        }}
-      />
+      {playerPanelOpen && selectedPlayerId ? (
+        <Suspense fallback={null}>
+          <LazyPlayerStatsPanel
+            playerId={selectedPlayerId as Id<"players">}
+            open={playerPanelOpen}
+            onClose={() => {
+              setPlayerPanelOpen(false)
+              setSelectedPlayerId(null)
+            }}
+          />
+        </Suspense>
+      ) : null}
     </section>
   )
 }

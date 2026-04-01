@@ -4,6 +4,24 @@ import { v } from "convex/values"
 export const getCurrentWeek = query({
   args: {},
   handler: async (ctx) => {
+    const weeks = await ctx.db.query("weeks").collect()
+    const activeWeeks = weeks.filter((week) => week.activeCompetitionCount > 0)
+
+    if (activeWeeks.length > 0) {
+      const weekNumber = Math.max(...activeWeeks.map((week) => week.weekNumber))
+      const competitions = await ctx.db
+        .query("competitions")
+        .withIndex("by_week_number", (q) => q.eq("weekNumber", weekNumber))
+        .collect()
+
+      return {
+        weekNumber,
+        competitions: competitions.filter(
+          (competition) => competition.status === "active"
+        ),
+      }
+    }
+
     const activeCompetitions = await ctx.db
       .query("competitions")
       .withIndex("by_status", (q) => q.eq("status", "active"))

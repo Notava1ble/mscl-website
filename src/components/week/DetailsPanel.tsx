@@ -1,9 +1,14 @@
+import { lazy, Suspense } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import MatchData from "./MatchData"
+
+const LazyMatchData = lazy(async () => {
+  const module = await import("./MatchData")
+  return { default: module.default }
+})
 
 export function DetailsPanel({
   weekNumber,
@@ -48,7 +53,15 @@ export function DetailsPanel({
           showBorder && "rounded-3xl border border-border"
         )}
       >
-        <MatchData matchId={rankedMatchId} />
+        <Suspense
+          fallback={
+            <div className="w-full text-center text-sm text-muted-foreground">
+              Loading match data...
+            </div>
+          }
+        >
+          <LazyMatchData matchId={rankedMatchId} />
+        </Suspense>
       </div>
     )
   }

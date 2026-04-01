@@ -29,7 +29,7 @@ export function LeagueSelector({
   if (!leagues || selectedLeagueTier === null) {
     return (
       <div className="flex gap-2">
-        <Skeleton className="h-10 w-[180px] rounded-md" />
+        <Skeleton className="h-10 w-45 rounded-md" />
       </div>
     )
   }

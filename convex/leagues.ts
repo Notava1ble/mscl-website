@@ -1,13 +1,23 @@
 import { query } from "./_generated/server"
+import { getLeagueName } from "./lib/readModels"
 
 export const listLeagues = query({
   args: {},
   handler: async (ctx) => {
+    const leagues = await ctx.db.query("leagues").collect()
+    if (leagues.length > 0) {
+      return leagues
+        .sort((a, b) => a.leagueTier - b.leagueTier)
+        .map((league) => ({
+          leagueTier: league.leagueTier,
+          name: league.name,
+        }))
+    }
+
     const [players, competitions] = await Promise.all([
       ctx.db.query("players").collect(),
       ctx.db.query("competitions").collect(),
     ])
-
     const tiers = new Set<number>()
 
     for (const player of players) {
@@ -22,7 +32,7 @@ export const listLeagues = query({
       .sort((a, b) => a - b)
       .map((leagueTier) => ({
         leagueTier,
-        name: `League ${leagueTier}`,
+        name: getLeagueName(leagueTier),
       }))
   },
 })

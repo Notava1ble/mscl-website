@@ -11,9 +11,20 @@ export default defineSchema({
     elo: v.optional(v.number()),
     currentLeagueNumber: v.number(),
   })
+    .index("by_discord_id", ["discordId"])
     .index("by_league", ["currentLeagueNumber"])
     .index("by_ign", ["ign"])
     .index("by_lowercase_ign", ["lowercaseIgn"]),
+
+  leagues: defineTable({
+    leagueTier: v.number(),
+    name: v.string(),
+  }).index("by_league_tier", ["leagueTier"]),
+
+  weeks: defineTable({
+    weekNumber: v.number(),
+    activeCompetitionCount: v.number(),
+  }).index("by_week_number", ["weekNumber"]),
 
   competitions: defineTable({
     leagueTier: v.number(),
@@ -33,6 +44,10 @@ export default defineSchema({
     // Store computed totals here to make sorting fast
     computedSeedPoints: v.number(),
     totalPoints: v.number(),
+    playerIgn: v.optional(v.string()),
+    playerElo: v.optional(v.number()),
+    weekNumber: v.optional(v.number()),
+    leagueTier: v.optional(v.number()),
     movementStatus: v.optional(
       v.union(v.literal("promoted"), v.literal("demoted"), v.literal("none"))
     ),
@@ -45,11 +60,17 @@ export default defineSchema({
     competitionId: v.id("competitions"),
     matchNumber: v.number(),
     rankedMatchId: v.optional(v.string()),
+    winnerPlayerId: v.optional(v.union(v.id("players"), v.null())),
+    winnerName: v.optional(v.union(v.string(), v.null())),
   }).index("by_competition_match", ["competitionId", "matchNumber"]),
 
   matchResults: defineTable({
     matchId: v.id("matches"),
     playerId: v.id("players"),
+    competitionId: v.optional(v.id("competitions")),
+    weekNumber: v.optional(v.number()),
+    leagueTier: v.optional(v.number()),
+    matchNumber: v.optional(v.number()),
     timeMs: v.union(v.number(), v.null()),
     dnf: v.boolean(),
     placement: v.union(v.number(), v.null()),
@@ -57,5 +78,6 @@ export default defineSchema({
   })
     .index("by_match", ["matchId"])
     .index("by_player", ["playerId"])
+    .index("by_player_and_competition", ["playerId", "competitionId"])
     .index("by_match_and_player", ["matchId", "playerId"]),
 })
