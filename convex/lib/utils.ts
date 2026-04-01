@@ -1,23 +1,32 @@
 import { z } from "zod"
 
-/**
- * Utility functions for Convex HTTP actions.
- */
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue | undefined }
+
+type JsonRecord = Record<string, JsonValue | undefined>
+
+export function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
+  })
+}
 
 export function jsonError(
   message: string,
   status: number,
-  details?: Record<string, unknown>
-) {
-  console.error(`[API Error] Status ${status}: ${message}`, details || "")
-  return new Response(JSON.stringify({ error: message, status, ...details }), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      // Expose allowed methods on every error so clients can self-correct
-      "Access-Control-Allow-Origin": "*",
-    },
-  })
+  details?: JsonRecord
+): Response {
+  console.error(`[HTTP ${status}] ${message}`, details ?? {})
+  return jsonResponse({ error: message, status, ...details }, status)
 }
 
 export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
@@ -34,87 +43,70 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   const aBytes = new Uint8Array(aHmac)
   const bBytes = new Uint8Array(bHmac)
   let diff = 0
-  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i]
+  for (let i = 0; i < aBytes.length; i += 1) diff |= aBytes[i] ^ bBytes[i]
   return diff === 0
 }
 
-export function extractApiKey(request: Request): string | null {
-  const xApiKey = request.headers.get("x-api-key")
-  if (xApiKey) return xApiKey
-  return null
-}
-
-/**
- * Validates the API key from the request header against an environment variable.
- * Returns a Response if validation fails, or null if successful.
- */
-export async function validateApiKey(
-  request: Request,
-  envVarName: string
+export async function validateWebsiteApiKey(
+  request: Request
 ): Promise<Response | null> {
-  const providedKey = extractApiKey(request)
-  if (!providedKey) {
-    console.warn(`[Auth] Missing API key for request to ${request.url}`)
-    return jsonError("Missing API key. Provide it via 'x-api-key' header.", 401)
+  const providedKey = request.headers.get("x-api-key")
+  const expectedKey = process.env.WEBSITE_API_KEY
+
+  if (!expectedKey) {
+    console.error("[Config] WEBSITE_API_KEY environment variable is not set")
+    return jsonError("Server misconfiguration.", 500)
   }
 
-  const expectedKey = process.env[envVarName] ?? ""
-  if (!expectedKey) {
-    console.error(`[Config] ${envVarName} environment variable is not set`)
-    return jsonError("Server misconfiguration. Contact the API owner.", 500)
+  if (!providedKey) {
+    console.warn(`[Auth] Missing x-api-key header for ${request.url}`)
+    return jsonError("Unauthorized", 401)
   }
 
   const isValid = await timingSafeEqual(providedKey, expectedKey)
   if (!isValid) {
-    console.warn(`[Auth] Invalid API key provided for ${envVarName}`)
-    return jsonError("Invalid API key.", 403)
+    console.warn(`[Auth] Invalid x-api-key header for ${request.url}`)
+    return jsonError("Unauthorized", 401)
   }
 
   return null
 }
 
-/**
- * Checks content type and extracts the JSON body, validating it against a schema.
- * Returns the data if successful, or a Response if validation fails.
- */
 export async function extractRequestBody<T>(
   request: Request,
   schema: z.ZodType<T>
 ): Promise<{ data: T } | { errorResponse: Response }> {
-  // 1. Check Content-Type
   const contentType = request.headers.get("content-type") ?? ""
   if (!contentType.includes("application/json")) {
     return {
       errorResponse: jsonError(
-        "Invalid Content-Type. Expected: application/json",
+        "Invalid Content-Type. Expected application/json.",
         415,
         { received: contentType || "(none)" }
       ),
     }
   }
 
-  // 2. Parse JSON
   let body: unknown
   try {
     body = await request.json()
-  } catch {
-    console.error("Failed to parse JSON body.")
+  } catch (error) {
+    console.error("[HTTP] Failed to parse JSON body", error)
     return { errorResponse: jsonError("Invalid JSON body.", 400) }
   }
 
-  // 3. Validate Schema
-  const parseResult = schema.safeParse(body)
-  if (!parseResult.success) {
-    console.error(
-      `[Validation] Schema validation failed for request to ${request.url}:`,
-      parseResult.error
-    )
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    console.error("[HTTP] Request body validation failed", parsed.error.issues)
     return {
       errorResponse: jsonError("Invalid body payload.", 400, {
-        issues: parseResult.error.issues,
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
       }),
     }
   }
 
-  return { data: parseResult.data }
+  return { data: parsed.data }
 }

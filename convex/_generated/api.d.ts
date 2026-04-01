@@ -18,6 +18,7 @@ import type * as playerStats from "../playerStats.js";
 import type * as players from "../players.js";
 import type * as weekView from "../weekView.js";
 import type * as weeks from "../weeks.js";
+import type * as writeApi from "../writeApi.js";
 
 import type {
   ApiFromModules,
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   players: typeof players;
   weekView: typeof weekView;
   weeks: typeof weeks;
+  writeApi: typeof writeApi;
 }>;
 
 /**
