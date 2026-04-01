@@ -3,12 +3,15 @@ import type { Doc, Id } from "./_generated/dataModel"
 import { internalMutation, type MutationCtx } from "./_generated/server"
 import {
   applyWeekCompetitionDelta,
+  buildMatchWinnerPatch,
   buildMatchResultSnapshot,
   buildRegistrationSnapshot,
   ensureLeague,
   ensureWeekHasActiveCompetition,
   getPlayerByDiscordId,
+  recomputeMatchWinnerSnapshot,
   syncPlayerRegistrationSnapshots,
+  syncPlayerWinnerSnapshots,
 } from "./lib/readModels"
 
 type ApiSuccess<T extends Record<string, unknown> = Record<string, never>> = {
@@ -184,23 +187,6 @@ function buildPlayerPatch(args: {
   return patch
 }
 
-function buildMatchWinnerPatch(
-  players: Array<{ player: PlayerDoc; placement: number | null }>
-) {
-  const winner = players
-    .filter((entry) => entry.placement !== null)
-    .sort(
-      (a, b) =>
-        (a.placement ?? Number.MAX_SAFE_INTEGER) -
-        (b.placement ?? Number.MAX_SAFE_INTEGER)
-    )[0]
-
-  return {
-    winnerPlayerId: winner?.player._id ?? null,
-    winnerName: winner?.player.ign ?? null,
-  }
-}
-
 export const createOrRestartCompetition = internalMutation({
   args: {
     leagueTier: v.number(),
@@ -364,6 +350,7 @@ export const registerPlayer = internalMutation({
     }
 
     await syncPlayerRegistrationSnapshots(ctx, player._id, player)
+    await syncPlayerWinnerSnapshots(ctx, player._id, player)
 
     const existingRegistration = await getRegistration(
       ctx,
@@ -435,6 +422,7 @@ export const unregisterPlayer = internalMutation({
     await ctx.db.delete(registration._id)
 
     let deletedMatchResults = 0
+    const affectedMatchIds = new Set<Id<"matches">>()
     while (true) {
       const batch = await ctx.db
         .query("matchResults")
@@ -446,29 +434,14 @@ export const unregisterPlayer = internalMutation({
       if (batch.length === 0) break
 
       for (const matchResult of batch) {
+        affectedMatchIds.add(matchResult.matchId)
         await ctx.db.delete(matchResult._id)
         deletedMatchResults += 1
       }
     }
 
-    const matches = await ctx.db
-      .query("matches")
-      .withIndex("by_competition_match", (q) =>
-        q.eq("competitionId", competition._id)
-      )
-      .collect()
-
-    for (const match of matches) {
-      const legacyResult = await ctx.db
-        .query("matchResults")
-        .withIndex("by_match_and_player", (q) =>
-          q.eq("matchId", match._id).eq("playerId", player._id)
-        )
-        .unique()
-
-      if (!legacyResult) continue
-      await ctx.db.delete(legacyResult._id)
-      deletedMatchResults += 1
+    for (const matchId of affectedMatchIds) {
+      await recomputeMatchWinnerSnapshot(ctx, matchId)
     }
 
     return {

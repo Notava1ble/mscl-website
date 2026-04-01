@@ -63,7 +63,8 @@ http.route({
       schema: CompetitionSchema,
       routeLabel: "POST /api/write/competition",
       successStatus: 200,
-      run: (payload) => ctx.runMutation(internal.writeApi.createOrRestartCompetition, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.createOrRestartCompetition, payload),
     })
   ),
 })
@@ -76,7 +77,8 @@ http.route({
       request,
       schema: CompetitionStatusSchema,
       routeLabel: "PATCH /api/write/competition/status",
-      run: (payload) => ctx.runMutation(internal.writeApi.updateCompetitionStatus, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.updateCompetitionStatus, payload),
     })
   ),
 })
@@ -89,7 +91,8 @@ http.route({
       request,
       schema: RegisterPlayerSchema,
       routeLabel: "POST /api/write/player",
-      run: (payload) => ctx.runMutation(internal.writeApi.registerPlayer, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.registerPlayer, payload),
     })
   ),
 })
@@ -102,7 +105,8 @@ http.route({
       request,
       schema: UnregisterPlayerSchema,
       routeLabel: "DELETE /api/write/player",
-      run: (payload) => ctx.runMutation(internal.writeApi.unregisterPlayer, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.unregisterPlayer, payload),
     })
   ),
 })
@@ -115,7 +119,8 @@ http.route({
       request,
       schema: CreateEmptyMatchSchema,
       routeLabel: "POST /api/write/match/create",
-      run: (payload) => ctx.runMutation(internal.writeApi.createEmptyMatch, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.createEmptyMatch, payload),
     })
   ),
 })
@@ -128,7 +133,8 @@ http.route({
       request,
       schema: ClearMatchResultsSchema,
       routeLabel: "DELETE /api/write/match/clear",
-      run: (payload) => ctx.runMutation(internal.writeApi.clearMatchResults, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.clearMatchResults, payload),
     })
   ),
 })
@@ -142,10 +148,7 @@ http.route({
       schema: ImportMatchSchema,
       routeLabel: "POST /api/write/match",
       run: (payload) =>
-        ctx.runMutation(
-          internal.writeApi.importMatchData,
-          payload as z.infer<typeof ImportMatchSchema>
-        ),
+        ctx.runMutation(internal.writeApi.importMatchData, payload),
     })
   ),
 })
@@ -159,10 +162,7 @@ http.route({
       schema: UpdateSingleResultSchema,
       routeLabel: "PATCH /api/write/match/result",
       run: (payload) =>
-        ctx.runMutation(
-          internal.writeApi.updateSingleResult,
-          payload as z.infer<typeof UpdateSingleResultSchema>
-        ),
+        ctx.runMutation(internal.writeApi.updateSingleResult, payload),
     })
   ),
 })
@@ -175,7 +175,8 @@ http.route({
       request,
       schema: PointAdjustmentSchema,
       routeLabel: "PATCH /api/write/adjustment",
-      run: (payload) => ctx.runMutation(internal.writeApi.setPointAdjustment, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.setPointAdjustment, payload),
     })
   ),
 })
@@ -188,7 +189,8 @@ http.route({
       request,
       schema: MovementSchema,
       routeLabel: "PATCH /api/write/movements",
-      run: (payload) => ctx.runMutation(internal.writeApi.processMovements, payload),
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.processMovements, payload),
     })
   ),
 })

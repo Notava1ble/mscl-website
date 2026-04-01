@@ -7,7 +7,6 @@ type DbCtx = MutationCtx | QueryCtx
 
 type RegistrationSnapshot = {
   playerIgn: string
-  playerElo: number
   weekNumber: number
   leagueTier: number
 }
@@ -105,12 +104,11 @@ export async function ensureWeekHasActiveCompetition(
 }
 
 export function buildRegistrationSnapshot(
-  player: Pick<Doc<"players">, "ign" | "elo">,
+  player: Pick<Doc<"players">, "ign">,
   competition: Pick<Doc<"competitions">, "weekNumber" | "leagueTier">
 ): RegistrationSnapshot {
   return {
     playerIgn: player.ign,
-    playerElo: player.elo ?? 0,
     weekNumber: competition.weekNumber,
     leagueTier: competition.leagueTier,
   }
@@ -128,28 +126,91 @@ export function buildMatchResultSnapshot(
   }
 }
 
+export function buildMatchWinnerPatch(
+  players: Array<{ player: Doc<"players">; placement: number | null }>
+) {
+  const winner = players
+    .filter((entry) => entry.placement !== null)
+    .sort(
+      (a, b) =>
+        (a.placement ?? Number.MAX_SAFE_INTEGER) -
+        (b.placement ?? Number.MAX_SAFE_INTEGER)
+    )[0]
+
+  return {
+    winnerPlayerId: winner?.player._id ?? null,
+    winnerName: winner?.player.ign ?? null,
+  }
+}
+
 export async function syncPlayerRegistrationSnapshots(
   ctx: MutationCtx,
   playerId: Id<"players">,
-  player: Pick<Doc<"players">, "ign" | "elo">
+  player: Pick<Doc<"players">, "ign">
 ) {
   const registrations = await ctx.db
     .query("registrations")
     .withIndex("by_player", (q) => q.eq("playerId", playerId))
     .collect()
 
-  const playerElo = player.elo ?? 0
   for (const registration of registrations) {
-    if (
-      registration.playerIgn === player.ign &&
-      registration.playerElo === playerElo
-    ) {
+    if (registration.playerIgn === player.ign) {
       continue
     }
 
     await ctx.db.patch(registration._id, {
       playerIgn: player.ign,
-      playerElo,
     })
   }
+}
+
+export async function syncPlayerWinnerSnapshots(
+  ctx: MutationCtx,
+  playerId: Id<"players">,
+  player: Pick<Doc<"players">, "ign">
+) {
+  const matches = await ctx.db
+    .query("matches")
+    .withIndex("by_winner_player", (q) => q.eq("winnerPlayerId", playerId))
+    .collect()
+
+  for (const match of matches) {
+    if (match.winnerName === player.ign) continue
+
+    await ctx.db.patch(match._id, {
+      winnerName: player.ign,
+    })
+  }
+}
+
+export async function recomputeMatchWinnerSnapshot(
+  ctx: MutationCtx,
+  matchId: Id<"matches">
+) {
+  const results = await ctx.db
+    .query("matchResults")
+    .withIndex("by_match", (q) => q.eq("matchId", matchId))
+    .collect()
+
+  const winner = results
+    .filter((result) => result.placement !== null)
+    .sort(
+      (a, b) =>
+        (a.placement ?? Number.MAX_SAFE_INTEGER) -
+        (b.placement ?? Number.MAX_SAFE_INTEGER)
+    )[0]
+
+  if (!winner) {
+    await ctx.db.patch(matchId, {
+      winnerPlayerId: null,
+      winnerName: null,
+    })
+    return
+  }
+
+  const player = await ctx.db.get(winner.playerId)
+  await ctx.db.patch(matchId, {
+    winnerPlayerId: winner.playerId,
+    winnerName: player?.ign ?? null,
+  })
 }

@@ -74,17 +74,19 @@ export const getWeekStandings = query({
       .withIndex("by_competition", (q) => q.eq("competitionId", competition._id))
       .collect()
 
-    const populated = registrations.map((registration) => ({
-      playerId: registration.playerId,
-      name: registration.playerIgn,
-      totalPoints: registration.totalPoints,
-      movement: (registration.movementStatus ?? null) as
-        | "promoted"
-        | "demoted"
-        | "none"
-        | null,
-      elo: registration.playerElo,
-    }))
+    const populated = await Promise.all(
+      registrations.map(async (registration) => ({
+        playerId: registration.playerId,
+        name: registration.playerIgn,
+        totalPoints: registration.totalPoints,
+        movement: (registration.movementStatus ?? null) as
+          | "promoted"
+          | "demoted"
+          | "none"
+          | null,
+        elo: (await ctx.db.get(registration.playerId))?.elo ?? 0,
+      }))
+    )
 
     populated.sort((a, b) => {
       const pointsDiff = b.totalPoints - a.totalPoints

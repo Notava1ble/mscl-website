@@ -7,6 +7,7 @@ import {
   type QueryCtx,
 } from "./_generated/server"
 import {
+  buildMatchWinnerPatch,
   buildMatchResultSnapshot,
   getPlayerByDiscordId as lookupPlayerByDiscordId,
 } from "./lib/readModels"
@@ -29,23 +30,6 @@ async function getPlayerByDiscordId(
   discordId: string
 ) {
   return await lookupPlayerByDiscordId(ctx, discordId)
-}
-
-function buildMatchWinnerPatch(
-  players: Array<{ player: Doc<"players">; placement: number | null }>
-) {
-  const winner = players
-    .filter((entry) => entry.placement !== null)
-    .sort(
-      (a, b) =>
-        (a.placement ?? Number.MAX_SAFE_INTEGER) -
-        (b.placement ?? Number.MAX_SAFE_INTEGER)
-    )[0]
-
-  return {
-    winnerPlayerId: winner?.player._id ?? null,
-    winnerName: winner?.player.ign ?? null,
-  }
 }
 
 export const ingestMatch = internalMutation({

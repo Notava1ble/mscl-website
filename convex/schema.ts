@@ -45,7 +45,6 @@ export default defineSchema({
     computedSeedPoints: v.number(),
     totalPoints: v.number(),
     playerIgn: v.string(),
-    playerElo: v.number(),
     weekNumber: v.number(),
     leagueTier: v.number(),
     movementStatus: v.optional(
@@ -62,7 +61,9 @@ export default defineSchema({
     rankedMatchId: v.optional(v.string()),
     winnerPlayerId: v.union(v.id("players"), v.null()),
     winnerName: v.union(v.string(), v.null()),
-  }).index("by_competition_match", ["competitionId", "matchNumber"]),
+  })
+    .index("by_competition_match", ["competitionId", "matchNumber"])
+    .index("by_winner_player", ["winnerPlayerId"]),
 
   matchResults: defineTable({
     matchId: v.id("matches"),
