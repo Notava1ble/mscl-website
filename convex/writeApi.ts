@@ -75,6 +75,28 @@ async function getRegistration(
     .unique()
 }
 
+async function applyRegistrationPointDelta(
+  ctx: MutationCtx,
+  competitionId: Id<"competitions">,
+  playerId: Id<"players">,
+  seedPointsDelta: number
+): Promise<RegistrationDoc | null> {
+  const registration = await getRegistration(ctx, competitionId, playerId)
+  if (!registration) {
+    return null
+  }
+
+  const computedSeedPoints = registration.computedSeedPoints + seedPointsDelta
+  const totalPoints = registration.totalPoints + seedPointsDelta
+
+  await ctx.db.patch(registration._id, {
+    computedSeedPoints,
+    totalPoints,
+  })
+
+  return await ctx.db.get(registration._id)
+}
+
 async function deleteMatchResultsForMatch(
   ctx: MutationCtx,
   matchId: Id<"matches">
@@ -481,7 +503,30 @@ export const clearMatchResults = internalMutation({
       return fail(404, "Match not found.")
     }
 
+    const deletedPointsByPlayer = new Map<Id<"players">, number>()
+    const existingResults = await ctx.db
+      .query("matchResults")
+      .withIndex("by_match", (q) => q.eq("matchId", match._id))
+      .collect()
+
+    for (const result of existingResults) {
+      deletedPointsByPlayer.set(
+        result.playerId,
+        (deletedPointsByPlayer.get(result.playerId) ?? 0) + result.pointsWon
+      )
+    }
+
     const deleted = await deleteMatchResultsForMatch(ctx, match._id)
+
+    for (const [playerId, deletedPoints] of deletedPointsByPlayer) {
+      await applyRegistrationPointDelta(
+        ctx,
+        competition._id,
+        playerId,
+        -deletedPoints
+      )
+    }
+
     return {
       ok: true,
       competitionId: competition._id,
@@ -558,10 +603,19 @@ export const importMatchData = internalMutation({
       return fail(500, "Match could not be created.")
     }
 
+    const pointDeltasByPlayer = new Map<Id<"players">, number>()
     for (const result of args.results) {
       const player = await getPlayerByDiscordId(ctx, result.discordId)
       if (!player) {
         return fail(404, `Player not found for discordId ${result.discordId}.`)
+      }
+
+      const registration = await getRegistration(ctx, competition._id, player._id)
+      if (!registration) {
+        return fail(
+          404,
+          `Registration not found for discordId ${result.discordId}.`
+        )
       }
 
       const existingResult = await ctx.db
@@ -572,12 +626,17 @@ export const importMatchData = internalMutation({
         .unique()
 
       if (existingResult) {
+        const pointDelta = result.pointsWon - existingResult.pointsWon
         await ctx.db.patch(existingResult._id, {
           timeMs: result.timeMs,
           dnf: result.dnf,
           placement: result.placement,
           pointsWon: result.pointsWon,
         })
+        pointDeltasByPlayer.set(
+          player._id,
+          (pointDeltasByPlayer.get(player._id) ?? 0) + pointDelta
+        )
       } else {
         await ctx.db.insert("matchResults", {
           matchId: match._id,
@@ -587,7 +646,21 @@ export const importMatchData = internalMutation({
           placement: result.placement,
           pointsWon: result.pointsWon,
         })
+        pointDeltasByPlayer.set(
+          player._id,
+          (pointDeltasByPlayer.get(player._id) ?? 0) + result.pointsWon
+        )
       }
+    }
+
+    for (const [playerId, pointDelta] of pointDeltasByPlayer) {
+      if (pointDelta === 0) continue
+      await applyRegistrationPointDelta(
+        ctx,
+        competition._id,
+        playerId,
+        pointDelta
+      )
     }
 
     return {
@@ -686,8 +759,12 @@ export const setPointAdjustment = internalMutation({
       return fail(404, "Registration not found.")
     }
 
+    const manualAdjustmentDelta =
+      args.manualAdjustmentPoints - registration.manualAdjustmentPoints
+
     await ctx.db.patch(registration._id, {
       manualAdjustmentPoints: args.manualAdjustmentPoints,
+      totalPoints: registration.totalPoints + manualAdjustmentDelta,
     })
 
     return {
