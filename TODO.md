@@ -1,1 +1,1 @@
-- [ ] ignore players who aren't registered for the current week
+- [ ] Make sure listPlayerMatches Read API is not broken by the changes

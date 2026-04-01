@@ -7,7 +7,7 @@ import {
   buildRegistrationSnapshot,
   ensureLeague,
   ensureWeekHasActiveCompetition,
-  getPlayerByDiscordId as lookupPlayerByDiscordId,
+  getPlayerByDiscordId,
   syncPlayerRegistrationSnapshots,
 } from "./lib/readModels"
 
@@ -46,13 +46,6 @@ async function getCompetition(
       q.eq("leagueTier", leagueTier).eq("weekNumber", weekNumber)
     )
     .unique()
-}
-
-async function getPlayerByDiscordId(
-  ctx: MutationCtx,
-  discordId: string
-): Promise<PlayerDoc | null> {
-  return await lookupPlayerByDiscordId(ctx, discordId)
 }
 
 async function getMatch(
@@ -685,7 +678,11 @@ export const importMatchData = internalMutation({
         return fail(404, `Player not found for discordId ${result.discordId}.`)
       }
 
-      const registration = await getRegistration(ctx, competition._id, player._id)
+      const registration = await getRegistration(
+        ctx,
+        competition._id,
+        player._id
+      )
       if (!registration) {
         return fail(
           404,

@@ -1,3 +1,5 @@
+// This project assumes a fresh database, so read/write models do not include
+// legacy-data fallbacks or backfill compatibility paths.
 import type { Doc, Id } from "../_generated/dataModel"
 import type { MutationCtx, QueryCtx } from "../_generated/server"
 
@@ -62,19 +64,6 @@ export async function getWeekSummary(
     .query("weeks")
     .withIndex("by_week_number", (q) => q.eq("weekNumber", weekNumber))
     .unique()
-}
-
-export async function ensureWeekSummary(
-  ctx: MutationCtx,
-  weekNumber: number
-): Promise<Id<"weeks">> {
-  const existing = await getWeekSummary(ctx, weekNumber)
-  if (existing) return existing._id
-
-  return await ctx.db.insert("weeks", {
-    weekNumber,
-    activeCompetitionCount: 0,
-  })
 }
 
 export async function applyWeekCompetitionDelta(

@@ -77,7 +77,9 @@ export const ingestMatch = internalMutation({
     let match = await ctx.db
       .query("matches")
       .withIndex("by_competition_match", (q) =>
-        q.eq("competitionId", competition._id).eq("matchNumber", args.matchNumber)
+        q
+          .eq("competitionId", competition._id)
+          .eq("matchNumber", args.matchNumber)
       )
       .unique()
 
@@ -174,7 +176,9 @@ export const adjustMatch = internalMutation({
     const match = await ctx.db
       .query("matches")
       .withIndex("by_competition_match", (q) =>
-        q.eq("competitionId", competition._id).eq("matchNumber", args.matchNumber)
+        q
+          .eq("competitionId", competition._id)
+          .eq("matchNumber", args.matchNumber)
       )
       .unique()
     if (!match) {
@@ -207,6 +211,7 @@ export const adjustMatch = internalMutation({
   },
 })
 
+// Doesnt work as intended if player has switched leagues between now and the week being queried, will fix later
 export const listPlayerMatches = internalQuery({
   args: {
     discordId: v.string(),
@@ -221,7 +226,9 @@ export const listPlayerMatches = internalQuery({
     const competition = await ctx.db
       .query("competitions")
       .withIndex("by_league_and_week", (q) =>
-        q.eq("leagueTier", player.currentLeagueNumber).eq("weekNumber", args.weekNumber)
+        q
+          .eq("leagueTier", player.currentLeagueNumber)
+          .eq("weekNumber", args.weekNumber)
       )
       .unique()
     if (!competition) {
@@ -252,9 +259,7 @@ export const listPlayerMatches = internalQuery({
         )
         .collect()
     )
-      .sort(
-        (a, b) => (a.matchNumber ?? Number.MAX_SAFE_INTEGER) - (b.matchNumber ?? Number.MAX_SAFE_INTEGER)
-      )
+      .sort((a, b) => a.matchNumber - b.matchNumber)
       .map((result) => ({
         rankedMatchId: matchesById.get(result.matchId)?.rankedMatchId ?? null,
         pointsWon: result.pointsWon,

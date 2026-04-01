@@ -7,34 +7,18 @@ export const getCurrentWeek = query({
     const weeks = await ctx.db.query("weeks").collect()
     const activeWeeks = weeks.filter((week) => week.activeCompetitionCount > 0)
 
-    if (activeWeeks.length > 0) {
-      const weekNumber = Math.max(...activeWeeks.map((week) => week.weekNumber))
-      const competitions = await ctx.db
-        .query("competitions")
-        .withIndex("by_week_number", (q) => q.eq("weekNumber", weekNumber))
-        .collect()
+    if (activeWeeks.length === 0) return null
 
-      return {
-        weekNumber,
-        competitions: competitions.filter(
-          (competition) => competition.status === "active"
-        ),
-      }
-    }
-
-    const activeCompetitions = await ctx.db
+    const weekNumber = Math.max(...activeWeeks.map((week) => week.weekNumber))
+    const competitions = await ctx.db
       .query("competitions")
-      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .withIndex("by_week_number", (q) => q.eq("weekNumber", weekNumber))
       .collect()
-
-    if (activeCompetitions.length === 0) return null
-
-    const weekNumber = Math.max(...activeCompetitions.map((c) => c.weekNumber))
 
     return {
       weekNumber,
-      competitions: activeCompetitions.filter(
-        (competition) => competition.weekNumber === weekNumber
+      competitions: competitions.filter(
+        (competition) => competition.status === "active"
       ),
     }
   },
