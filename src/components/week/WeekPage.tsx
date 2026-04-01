@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
-import type { Id } from "../../../convex/_generated/dataModel"
 import ConvexClientProvider from "@/components/ConvexClientProvider"
 import { WeekSelector } from "./WeekSelector"
 import { LeagueSelector } from "./LeagueSelector"
@@ -22,79 +21,79 @@ function WeekContent() {
   const weeks = useQuery(api.weekView.getAllWeeks)
   const leagues = useQuery(api.leagues.listLeagues)
 
-  const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
-
+  const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(
+    null
+  )
+  const [selectedLeagueTier, setSelectedLeagueTier] = useState<number | null>(
+    null
+  )
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isUrlInitialized, setIsUrlInitialized] = useState(false)
 
-  // Initialize selected week and league from URL once data is loaded
   useEffect(() => {
-    if (typeof window === "undefined" || !weeks || !leagues || isUrlInitialized) return
+    if (
+      typeof window === "undefined" ||
+      !weeks ||
+      !leagues ||
+      isUrlInitialized
+    ) {
+      return
+    }
 
     const searchParams = new URL(window.location.href).searchParams
     const urlWeek = searchParams.get("week")
     const urlLeague = searchParams.get("league")
 
-    let initialWeekId = null
-    if (urlWeek) {
-      const parsedWeek = parseInt(urlWeek, 10)
-      if (!isNaN(parsedWeek)) {
-        const week = weeks.find((w) => w.weekNumber === parsedWeek)
-        if (week) initialWeekId = week._id
-      }
+    const parsedWeek =
+      urlWeek && urlWeek !== "latest" ? Number.parseInt(urlWeek, 10) : Number.NaN
+    const parsedLeague = urlLeague ? Number.parseInt(urlLeague, 10) : Number.NaN
+
+    if (Number.isFinite(parsedWeek)) {
+      const matchedWeek = weeks.find((week) => week.weekNumber === parsedWeek)
+      if (matchedWeek) setSelectedWeekNumber(matchedWeek.weekNumber)
     }
 
-    let initialLeagueId = null
-    if (urlLeague) {
-      const parsedLeague = parseInt(urlLeague, 10)
-      if (!isNaN(parsedLeague)) {
-        const league = leagues.find((l) => l.tierLevel === parsedLeague)
-        if (league) initialLeagueId = league._id
-      }
+    if (Number.isFinite(parsedLeague)) {
+      const matchedLeague = leagues.find(
+        (league) => league.leagueTier === parsedLeague
+      )
+      if (matchedLeague) setSelectedLeagueTier(matchedLeague.leagueTier)
     }
 
-    // Set state FIRST
-    if (initialWeekId) setSelectedWeekId(initialWeekId)
-    if (initialLeagueId) setSelectedLeagueId(initialLeagueId)
-    
-    // Then mark initialized
     setIsUrlInitialized(true)
   }, [weeks, leagues, isUrlInitialized])
 
-  // Handle browser back and forward buttons
   useEffect(() => {
     if (typeof window === "undefined") return
 
     const handlePopState = () => {
       if (!weeks || !leagues) return
+
       const searchParams = new URL(window.location.href).searchParams
       const urlWeek = searchParams.get("week")
       const urlLeague = searchParams.get("league")
 
-      let newWeekId = null
-      if (urlWeek) {
-        const parsedWeek = parseInt(urlWeek, 10)
-        if (!isNaN(parsedWeek)) {
-          const week = weeks.find((w) => w.weekNumber === parsedWeek)
-          if (week) newWeekId = week._id
-        }
-      }
+      const parsedWeek =
+        urlWeek && urlWeek !== "latest"
+          ? Number.parseInt(urlWeek, 10)
+          : Number.NaN
+      const parsedLeague = urlLeague ? Number.parseInt(urlLeague, 10) : Number.NaN
 
-      let newLeagueId = null
-      if (urlLeague) {
-        const parsedLeague = parseInt(urlLeague, 10)
-        if (!isNaN(parsedLeague)) {
-          const league = leagues.find((l) => l.tierLevel === parsedLeague)
-          if (league) newLeagueId = league._id
-        }
-      }
+      setSelectedWeekNumber(
+        Number.isFinite(parsedWeek) &&
+          weeks.some((week) => week.weekNumber === parsedWeek)
+          ? parsedWeek
+          : null
+      )
 
-      // If they are missing in URL, we want to clear selected so they fall back to defaults
-      setSelectedWeekId(newWeekId)
-      setSelectedLeagueId(newLeagueId)
+      setSelectedLeagueTier(
+        Number.isFinite(parsedLeague) &&
+          leagues.some((league) => league.leagueTier === parsedLeague)
+          ? parsedLeague
+          : null
+      )
     }
 
     window.addEventListener("popstate", handlePopState)
@@ -109,40 +108,40 @@ function WeekContent() {
     }
   }
 
-  const effectiveSelectedWeekId =
-    (selectedWeekId && weeks?.some((w) => w._id === selectedWeekId)
-      ? selectedWeekId
+  const effectiveSelectedWeekNumber =
+    (selectedWeekNumber !== null &&
+    weeks?.some((week) => week.weekNumber === selectedWeekNumber)
+      ? selectedWeekNumber
       : null) ??
-    weeks?.find((w) => w.isCurrent)?._id ??
-    weeks?.[0]?._id ??
+    weeks?.find((week) => week.isActive)?.weekNumber ??
+    weeks?.[0]?.weekNumber ??
     null
 
-  const effectiveSelectedLeagueId =
-    (selectedLeagueId && leagues?.some((l) => l._id === selectedLeagueId)
-      ? selectedLeagueId
+  const effectiveSelectedLeagueTier =
+    (selectedLeagueTier !== null &&
+    leagues?.some((league) => league.leagueTier === selectedLeagueTier)
+      ? selectedLeagueTier
       : null) ??
-    leagues?.find((l) => l.tierLevel === 1)?._id ??
-    leagues?.[0]?._id ??
+    leagues?.find((league) => league.leagueTier === 1)?.leagueTier ??
+    leagues?.[0]?.leagueTier ??
     null
-
-
 
   const standings = useQuery(
     api.weekView.getWeekStandings,
-    effectiveSelectedWeekId && effectiveSelectedLeagueId
+    effectiveSelectedWeekNumber !== null && effectiveSelectedLeagueTier !== null
       ? {
-          weekId: effectiveSelectedWeekId as Id<"weeks">,
-          leagueId: effectiveSelectedLeagueId as Id<"leagues">,
+          weekNumber: effectiveSelectedWeekNumber,
+          leagueTier: effectiveSelectedLeagueTier,
         }
       : "skip"
   )
 
   const matches = useQuery(
     api.weekView.getWeekMatches,
-    effectiveSelectedWeekId && effectiveSelectedLeagueId
+    effectiveSelectedWeekNumber !== null && effectiveSelectedLeagueTier !== null
       ? {
-          weekId: effectiveSelectedWeekId as Id<"weeks">,
-          leagueId: effectiveSelectedLeagueId as Id<"leagues">,
+          weekNumber: effectiveSelectedWeekNumber,
+          leagueTier: effectiveSelectedLeagueTier,
         }
       : "skip"
   )
@@ -169,46 +168,41 @@ function WeekContent() {
     }
   }
 
-  function onWeekChange(id: string) {
-    setSelectedWeekId(id)
+  function pushSelectionToUrl(weekNumber: number, leagueTier: number) {
+    const newUrl = new URL(window.location.href)
+    newUrl.searchParams.set("week", String(weekNumber))
+    newUrl.searchParams.set("league", String(leagueTier))
+    window.history.pushState({}, "", newUrl.toString())
+  }
+
+  function onWeekChange(weekNumber: number) {
+    setSelectedWeekNumber(weekNumber)
     setSelectedPlayerId(null)
     setSelectedMatchId(null)
     setIsDrawerOpen(false)
 
-    // Update URL with pushState for manual changes
-    const week = weeks?.find((w) => w._id === id)
-    const league = leagues?.find((l) => l._id === effectiveSelectedLeagueId)
-    if (week && league) {
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.set("week", week.weekNumber.toString())
-      newUrl.searchParams.set("league", league.tierLevel.toString())
-      window.history.pushState({}, "", newUrl.toString())
+    if (effectiveSelectedLeagueTier !== null) {
+      pushSelectionToUrl(weekNumber, effectiveSelectedLeagueTier)
     }
   }
 
-  function onLeagueChange(id: string) {
-    setSelectedLeagueId(id)
+  function onLeagueChange(leagueTier: number) {
+    setSelectedLeagueTier(leagueTier)
     setSelectedPlayerId(null)
     setSelectedMatchId(null)
     setIsDrawerOpen(false)
 
-    // Update URL with pushState for manual changes
-    const week = weeks?.find((w) => w._id === effectiveSelectedWeekId)
-    const league = leagues?.find((l) => l._id === id)
-    if (week && league) {
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.set("week", week.weekNumber.toString())
-      newUrl.searchParams.set("league", league.tierLevel.toString())
-      window.history.pushState({}, "", newUrl.toString())
+    if (effectiveSelectedWeekNumber !== null) {
+      pushSelectionToUrl(effectiveSelectedWeekNumber, leagueTier)
     }
   }
 
-  const selectedPlayer = standings?.find((s) => s.playerId === selectedPlayerId)
-
-  const selectedMatch = matches?.find((m) => m._id === selectedMatchId)
+  const selectedPlayer = standings?.find((standing) => standing.playerId === selectedPlayerId)
+  const selectedMatch = matches?.find((match) => match._id === selectedMatchId)
 
   const detailsPanelProps = {
-    weekId: effectiveSelectedWeekId,
+    weekNumber: effectiveSelectedWeekNumber,
+    leagueTier: effectiveSelectedLeagueTier,
     playerId: selectedPlayerId,
     matchId: selectedMatchId,
     rankedMatchId: selectedMatch?.rankedMatchId ?? null,
@@ -224,14 +218,13 @@ function WeekContent() {
   return (
     <div className="min-h-screen bg-background pt-20 pb-24 font-sans text-foreground md:pt-28">
       <div className="container mx-auto max-w-7xl px-4 md:px-8">
-        {/* Header section */}
         <div className="mb-4 flex flex-col justify-between gap-4 border-b border-border/40 pb-4 md:flex-row md:items-center">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
             Weekly Leaderboards
           </h1>
           <WeekSelector
             weeks={weeks}
-            selectedWeekId={effectiveSelectedWeekId}
+            selectedWeekNumber={effectiveSelectedWeekNumber}
             onSelect={onWeekChange}
           />
         </div>
@@ -239,7 +232,7 @@ function WeekContent() {
         <div className="mb-8">
           <LeagueSelector
             leagues={leagues}
-            selectedLeagueId={effectiveSelectedLeagueId}
+            selectedLeagueTier={effectiveSelectedLeagueTier}
             onSelect={onLeagueChange}
             isMobile={isMobile}
           />

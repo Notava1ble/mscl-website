@@ -3,26 +3,27 @@ import { internalMutation, internalQuery, query } from "./_generated/server"
 
 export const listPlayersInLeague = query({
   args: {
-    leagueId: v.id("leagues"),
+    leagueTier: v.number(),
   },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("players")
-      .withIndex("by_league", (q) => q.eq("currentLeagueId", args.leagueId))
-      .order("desc")
+      .withIndex("by_league", (q) =>
+        q.eq("currentLeagueNumber", args.leagueTier)
+      )
       .collect()
   },
 })
 
 export const getPlayerByName = internalQuery({
   args: {
-    name: v.string(),
+    ign: v.string(),
   },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("players")
-      .withIndex("by_name", (q) => q.eq("name", args.name))
-      .first()
+      .withIndex("by_ign", (q) => q.eq("ign", args.ign))
+      .unique()
   },
 })
 
@@ -30,59 +31,61 @@ export const createOrUpdatePlayers = internalMutation({
   args: {
     players: v.array(
       v.object({
-        name: v.string(),
-        elo: v.number(),
+        discordId: v.string(),
+        uuid: v.string(),
+        ign: v.string(),
+        elo: v.optional(v.number()),
         leagueTier: v.number(),
       })
     ),
   },
   handler: async (ctx, args) => {
-    // Cache the resolved league IDs to avoid repeated unneeded queries
-    const leagueCache = new Map<number, string>()
+    for (const player of args.players) {
+      const lowercaseIgn = player.ign.toLowerCase()
 
-    for (const p of args.players) {
-      let leagueId = leagueCache.get(p.leagueTier)
-
-      if (!leagueId) {
-        // Find existing league
-        const league = await ctx.db
-          .query("leagues")
-          .withIndex("by_tier_level", (q) => q.eq("tierLevel", p.leagueTier))
-          .first()
-
-        if (league) {
-          leagueId = league._id
-        } else {
-          // Auto-create league if it doesn't exist
-          leagueId = await ctx.db.insert("leagues", {
-            name: `League ${p.leagueTier}`,
-            tierLevel: p.leagueTier,
-          })
-        }
-        leagueCache.set(p.leagueTier, leagueId)
-      }
-
-      // Ensure we type-cast the cached string back to an Id
-      const finalLeagueId =
-        leagueId as import("./_generated/dataModel").Id<"leagues">
-
-      const existingPlayer = await ctx.db
+      const existingByDiscord = await ctx.db
         .query("players")
-        .withIndex("by_name", (q) => q.eq("name", p.name))
+        .filter((q) => q.eq(q.field("discordId"), player.discordId))
         .first()
 
-      if (existingPlayer) {
-        await ctx.db.patch(existingPlayer._id, {
-          elo: p.elo,
-          currentLeagueId: finalLeagueId,
+      if (existingByDiscord) {
+        await ctx.db.patch(existingByDiscord._id, {
+          uuid: player.uuid,
+          ign: player.ign,
+          lowercaseIgn,
+          elo: player.elo,
+          currentLeagueNumber: player.leagueTier,
         })
-      } else {
-        await ctx.db.insert("players", {
-          name: p.name,
-          elo: p.elo,
-          currentLeagueId: finalLeagueId,
-        })
+        continue
       }
+
+      const existingByIgn = await ctx.db
+        .query("players")
+        .withIndex("by_lowercase_ign", (q) =>
+          q.eq("lowercaseIgn", lowercaseIgn)
+        )
+        .unique()
+
+      if (existingByIgn) {
+        await ctx.db.patch(existingByIgn._id, {
+          discordId: player.discordId,
+          uuid: player.uuid,
+          ign: player.ign,
+          lowercaseIgn,
+          elo: player.elo,
+          currentLeagueNumber: player.leagueTier,
+        })
+        continue
+      }
+
+      await ctx.db.insert("players", {
+        discordId: player.discordId,
+        uuid: player.uuid,
+        ign: player.ign,
+        lowercaseIgn,
+        currentLeagueNumber: player.leagueTier,
+        ...(player.elo !== undefined ? { elo: player.elo } : {}),
+      })
     }
 
     return { success: true, count: args.players.length }

@@ -6,121 +6,139 @@ export const getPlayerStats = query({
     playerId: v.id("players"),
   },
   handler: async (ctx, args) => {
-    // 1. Get player info
     const player = await ctx.db.get(args.playerId)
     if (!player) return null
 
-    // Get current league info
-    const currentLeague = await ctx.db.get(player.currentLeagueId)
-
-    // 2. Get all weekly standings for this player (league history + movement)
-    const playerStandings = await ctx.db
-      .query("weeklyStandings")
+    const registrations = await ctx.db
+      .query("registrations")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
       .collect()
 
-    // Build league history with week info
-    const leagueHistory = await Promise.all(
-      playerStandings.map(async (standing) => {
-        const week = await ctx.db.get(standing.weekId)
+    const competitionsById = new Map<
+      string,
+      {
+        leagueTier: number
+        weekNumber: number
+        competitionId: typeof registrations[number]["competitionId"]
+      }
+    >()
+
+    for (const registration of registrations) {
+      const competition = await ctx.db.get(registration.competitionId)
+      if (!competition) continue
+      competitionsById.set(registration.competitionId, {
+        competitionId: registration.competitionId,
+        leagueTier: competition.leagueTier,
+        weekNumber: competition.weekNumber,
+      })
+    }
+
+    const leagueHistory = registrations
+      .map((registration) => {
+        const competition = competitionsById.get(registration.competitionId)
+        if (!competition) return null
+
         return {
-          weekNumber: week?.weekNumber ?? 0,
-          leagueNumber: standing.leagueNumber,
-          movement: standing.movement,
-          weekId: standing.weekId,
+          weekNumber: competition.weekNumber,
+          leagueNumber: competition.leagueTier,
+          movement: registration.movementStatus ?? "none",
         }
       })
-    )
-    leagueHistory.sort((a, b) => a.weekNumber - b.weekNumber)
+      .filter((entry) => entry !== null)
+      .sort((a, b) => a.weekNumber - b.weekNumber)
 
-    // 3. Get all match results for this player
     const playerResults = await ctx.db
       .query("matchResults")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
       .collect()
 
-    // Group by match -> week
-    const weeklyBreakdown: Record<
-      string,
+    const weeklyBreakdown = new Map<
+      number,
       {
         weekNumber: number
+        leagueNumber: number
         matches: number
         totalPoints: number
         totalTimeMs: number
-        times: number[]
+        timedMatches: number
         matchDetails: {
-          matchId: import("./_generated/dataModel").Id<"matches">
+          matchId: typeof playerResults[number]["matchId"]
           matchNumber: number
           placement: number | null
           pointsWon: number
-          timeMs: number
+          timeMs: number | null
+          dnf: boolean
         }[]
       }
-    > = {}
+    >()
 
     for (const result of playerResults) {
       const match = await ctx.db.get(result.matchId)
       if (!match) continue
 
-      const week = await ctx.db.get(match.weekId)
-      if (!week) continue
+      const competition = await ctx.db.get(match.competitionId)
+      if (!competition) continue
 
-      const weekKey = week._id
-      if (!weeklyBreakdown[weekKey]) {
-        weeklyBreakdown[weekKey] = {
-          weekNumber: week.weekNumber,
-          matches: 0,
-          totalPoints: 0,
-          totalTimeMs: 0,
-          times: [],
-          matchDetails: [],
-        }
+      const existingWeek = weeklyBreakdown.get(competition.weekNumber) ?? {
+        weekNumber: competition.weekNumber,
+        leagueNumber: competition.leagueTier,
+        matches: 0,
+        totalPoints: 0,
+        totalTimeMs: 0,
+        timedMatches: 0,
+        matchDetails: [],
       }
 
-      weeklyBreakdown[weekKey].matches++
-      weeklyBreakdown[weekKey].totalPoints += result.pointsWon
-      weeklyBreakdown[weekKey].totalTimeMs += result.timeMs
-      weeklyBreakdown[weekKey].times.push(result.timeMs)
+      existingWeek.matches += 1
+      existingWeek.totalPoints += result.pointsWon
+      if (result.timeMs !== null) {
+        existingWeek.totalTimeMs += result.timeMs
+        existingWeek.timedMatches += 1
+      }
 
-      weeklyBreakdown[weekKey].matchDetails.push({
+      existingWeek.matchDetails.push({
         matchId: match._id,
         matchNumber: match.matchNumber,
-        placement:
-          typeof result.placement === "number" ? result.placement : null,
+        placement: result.placement,
         pointsWon: result.pointsWon,
         timeMs: result.timeMs,
+        dnf: result.dnf,
       })
+
+      weeklyBreakdown.set(competition.weekNumber, existingWeek)
     }
 
-    const weeks = Object.values(weeklyBreakdown)
+    const weeks = Array.from(weeklyBreakdown.values())
       .map((week) => ({
         ...week,
-        matchDetails: week.matchDetails.sort(
-          (a, b) => a.matchNumber - b.matchNumber
-        ),
+        matchDetails: week.matchDetails.sort((a, b) => a.matchNumber - b.matchNumber),
       }))
       .sort((a, b) => a.weekNumber - b.weekNumber)
 
-    // 4. Compute summary stats
-    const allTimes = playerResults.map((r) => r.timeMs)
-    const totalMatches = playerResults.length
+    const completedTimes = playerResults
+      .map((result) => result.timeMs)
+      .filter((timeMs): timeMs is number => timeMs !== null)
+
     const avgTimeMs =
-      allTimes.length > 0
-        ? allTimes.reduce((a, b) => a + b, 0) / allTimes.length
+      completedTimes.length > 0
+        ? Math.round(
+            completedTimes.reduce((total, timeMs) => total + timeMs, 0) /
+              completedTimes.length
+          )
         : 0
-    const bestTimeMs = allTimes.length > 0 ? Math.min(...allTimes) : 0
 
     return {
-      name: player.name,
-      elo: player.elo,
-      currentLeague: currentLeague?.name ?? "Unknown",
-      currentTier: currentLeague?.tierLevel ?? 0,
+      name: player.ign,
+      elo: player.elo ?? 0,
+      currentLeague: `League ${player.currentLeagueNumber}`,
+      currentTier: player.currentLeagueNumber,
       leagueHistory,
       weeklyBreakdown: weeks,
       summary: {
-        totalMatches,
-        avgTimeMs: Math.round(avgTimeMs),
-        bestTimeMs,
+        totalMatches: playerResults.length,
+        avgTimeMs,
+        bestTimeMs:
+          completedTimes.length > 0 ? Math.min(...completedTimes) : 0,
       },
     }
   },

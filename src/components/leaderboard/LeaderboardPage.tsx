@@ -10,46 +10,43 @@ import ConvexClientProvider from "@/components/ConvexClientProvider"
 
 function LeaderboardContent() {
   const leagues = useQuery(api.leagues.listLeagues)
-  // const currentWeek = useQuery(api.weeks.getCurrentWeek)
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
+  const [selectedLeagueTier, setSelectedLeagueTier] = useState<number | null>(
+    null
+  )
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [playerPanelOpen, setPlayerPanelOpen] = useState(false)
 
-  // Auto-select league: prefer URL param, fall back to first league
   useEffect(() => {
-    if (!leagues || leagues.length === 0 || selectedLeagueId) return
+    if (!leagues || leagues.length === 0 || selectedLeagueTier !== null) return
 
     const params = new URLSearchParams(window.location.search)
     const tierParam = params.get("league")
+    const parsedTier = tierParam ? Number(tierParam) : Number.NaN
 
-    const matched = tierParam
-      ? leagues.find((l) => String(l.tierLevel) === tierParam)
+    const matched = Number.isFinite(parsedTier)
+      ? leagues.find((league) => league.leagueTier === parsedTier)
       : null
 
-    setSelectedLeagueId(matched ? matched._id : leagues[0]._id)
-  }, [leagues, selectedLeagueId])
+    setSelectedLeagueTier(matched?.leagueTier ?? leagues[0].leagueTier)
+  }, [leagues, selectedLeagueTier])
 
-  const onLeagueSelect = useCallback(
-    (leagueId: string) => {
-      setSelectedLeagueId(leagueId)
-      setSelectedPlayerId(null)
+  const onLeagueSelect = useCallback((leagueTier: number) => {
+    setSelectedLeagueTier(leagueTier)
+    setSelectedPlayerId(null)
 
-      const league = leagues?.find((l) => l._id === leagueId)
-      if (league) {
-        const params = new URLSearchParams(window.location.search)
-        params.set("league", String(league.tierLevel))
-        history.pushState({}, "", `?${params.toString()}`)
-      }
-    },
-    [leagues]
-  )
+    const params = new URLSearchParams(window.location.search)
+    params.set("league", String(leagueTier))
+    history.pushState({}, "", `?${params.toString()}`)
+  }, [])
 
   const standings = useQuery(
     api.leaderboard.getLeagueStandings,
-    selectedLeagueId ? { leagueId: selectedLeagueId as Id<"leagues"> } : "skip"
+    selectedLeagueTier !== null ? { leagueTier: selectedLeagueTier } : "skip"
   )
 
-  const selectedLeague = leagues?.find((l) => l._id === selectedLeagueId)
+  const selectedLeague = leagues?.find(
+    (league) => league.leagueTier === selectedLeagueTier
+  )
 
   function handlePlayerClick(playerId: string) {
     setSelectedPlayerId(playerId)
@@ -78,11 +75,11 @@ function LeaderboardContent() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <LeagueSelector
           leagues={leagues}
-          selectedLeagueId={selectedLeagueId}
+          selectedLeagueTier={selectedLeagueTier}
           onSelect={onLeagueSelect}
         />
         {selectedLeague && (
-          <a href={`/week?league=${selectedLeague.tierLevel}&week=latest`}>
+          <a href={`/week?league=${selectedLeague.leagueTier}&week=latest`}>
             <CustomButton
               variant="outline"
               size="sm"

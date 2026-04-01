@@ -1,28 +1,58 @@
 import { v } from "convex/values"
-import { query } from "./_generated/server"
+import { query, type QueryCtx } from "./_generated/server"
+
+async function getCompetitionByWeekAndLeague(
+  ctx: QueryCtx,
+  weekNumber: number,
+  leagueTier: number
+) {
+  return await ctx.db
+    .query("competitions")
+    .withIndex("by_league_and_week", (q) =>
+      q.eq("leagueTier", leagueTier).eq("weekNumber", weekNumber)
+    )
+    .unique()
+}
 
 export const getAllWeeks = query({
+  args: {},
   handler: async (ctx) => {
-    const weeks = await ctx.db.query("weeks").collect()
-    // Sort descending by weekNumber
-    return weeks.sort((a, b) => b.weekNumber - a.weekNumber)
+    const competitions = await ctx.db.query("competitions").collect()
+    const weeks = new Map<number, { weekNumber: number; isActive: boolean }>()
+
+    for (const competition of competitions) {
+      const existing = weeks.get(competition.weekNumber)
+      weeks.set(competition.weekNumber, {
+        weekNumber: competition.weekNumber,
+        isActive:
+          competition.status === "active" || existing?.isActive === true,
+      })
+    }
+
+    return Array.from(weeks.values()).sort((a, b) => b.weekNumber - a.weekNumber)
   },
 })
 
 export const getWeekMatches = query({
   args: {
-    weekId: v.id("weeks"),
-    leagueId: v.id("leagues"),
+    weekNumber: v.number(),
+    leagueTier: v.number(),
   },
   handler: async (ctx, args) => {
+    const competition = await getCompetitionByWeekAndLeague(
+      ctx,
+      args.weekNumber,
+      args.leagueTier
+    )
+    if (!competition) return []
+
     const matches = await ctx.db
       .query("matches")
-      .withIndex("by_week_and_league", (q) =>
-        q.eq("weekId", args.weekId).eq("leagueId", args.leagueId)
+      .withIndex("by_competition_match", (q) =>
+        q.eq("competitionId", competition._id)
       )
       .collect()
 
-    // For each match, return the winner
     const matchesWithWinner = await Promise.all(
       matches.map(async (match) => {
         const results = await ctx.db
@@ -30,148 +60,121 @@ export const getWeekMatches = query({
           .withIndex("by_match", (q) => q.eq("matchId", match._id))
           .collect()
 
-        const winnerResult = results.find((r) => r.placement === 1)
-        let winnerName = "Unknown"
-        if (winnerResult) {
-          const p = await ctx.db.get(winnerResult.playerId)
-          if (p) winnerName = p.name
-        }
+        const winner = results
+          .filter((result) => result.placement !== null)
+          .sort((a, b) => (a.placement ?? Number.MAX_SAFE_INTEGER) - (b.placement ?? Number.MAX_SAFE_INTEGER))[0]
+
+        const winnerPlayer = winner ? await ctx.db.get(winner.playerId) : null
 
         return {
           _id: match._id,
           matchNumber: match.matchNumber,
-          rankedMatchId: match.rankedMatchId,
-          winnerName,
+          rankedMatchId: match.rankedMatchId ?? null,
+          winnerName: winnerPlayer?.ign ?? "Unknown",
         }
       })
     )
 
-    matchesWithWinner.sort((a, b) => a.matchNumber - b.matchNumber)
-    return matchesWithWinner
+    return matchesWithWinner.sort((a, b) => a.matchNumber - b.matchNumber)
   },
 })
 
 export const getWeekStandings = query({
   args: {
-    weekId: v.id("weeks"),
-    leagueId: v.id("leagues"),
+    weekNumber: v.number(),
+    leagueTier: v.number(),
   },
   handler: async (ctx, args) => {
-    const targetWeek = await ctx.db.get(args.weekId)
-    if (!targetWeek) return []
+    const competition = await getCompetitionByWeekAndLeague(
+      ctx,
+      args.weekNumber,
+      args.leagueTier
+    )
+    if (!competition) return []
 
-    if (!targetWeek.isCurrent) {
-      // return from weeklyStandings table
-      const standings = await ctx.db
-        .query("weeklyStandings")
-        .withIndex("by_week_and_league", (q) =>
-          q.eq("weekId", args.weekId).eq("leagueId", args.leagueId)
-        )
-        .collect()
+    const registrations = await ctx.db
+      .query("registrations")
+      .withIndex("by_competition", (q) => q.eq("competitionId", competition._id))
+      .collect()
 
-      const populated = await Promise.all(
-        standings.map(async (st) => {
-          const player = await ctx.db.get(st.playerId)
-          return {
-            playerId: st.playerId,
-            name: player?.name ?? "Unknown",
-            rank: st.finalPlacement,
-            totalPoints: st.totalPoints,
-            movement: st.movement,
-          }
-        })
-      )
-      return populated.sort((a, b) => a.rank - b.rank)
-    } else {
-      // aggregate dynamically
-      const matches = await ctx.db
-        .query("matches")
-        .withIndex("by_week_and_league", (q) =>
-          q.eq("weekId", args.weekId).eq("leagueId", args.leagueId)
-        )
-        .collect()
+    const populated = await Promise.all(
+      registrations.map(async (registration) => {
+        const player = await ctx.db.get(registration.playerId)
 
-      const pointsMap = new Map<
-        import("./_generated/dataModel").Id<"players">,
-        number
-      >()
-      const playerSet = new Set<
-        import("./_generated/dataModel").Id<"players">
-      >()
-
-      for (const match of matches) {
-        const results = await ctx.db
-          .query("matchResults")
-          .withIndex("by_match", (q) => q.eq("matchId", match._id))
-          .collect()
-
-        for (const res of results) {
-          playerSet.add(res.playerId)
-          pointsMap.set(
-            res.playerId,
-            (pointsMap.get(res.playerId) ?? 0) + res.pointsWon
-          )
+        return {
+          playerId: registration.playerId,
+          name: player?.ign ?? "Unknown",
+          totalPoints: registration.totalPoints,
+          movement: (registration.movementStatus ?? null) as
+            | "promoted"
+            | "demoted"
+            | "none"
+            | null,
+          elo: player?.elo ?? 0,
         }
-      }
-
-      const playersList = Array.from(playerSet)
-      const populated = await Promise.all(
-        playersList.map(async (pId) => {
-          const p = await ctx.db.get(pId)
-          return {
-            playerId: pId,
-            name: p?.name ?? "Unknown",
-            totalPoints: pointsMap.get(pId) ?? 0,
-            movement: null, // "potentialRelegation" handled by UI based on rank and league rules
-          }
-        })
-      )
-
-      populated.sort((a, b) => {
-        return b.totalPoints - a.totalPoints
       })
+    )
 
-      return populated.map((p, i) => ({ ...p, rank: i + 1 }))
-    }
+    populated.sort((a, b) => {
+      const pointsDiff = b.totalPoints - a.totalPoints
+      if (pointsDiff !== 0) return pointsDiff
+      const eloDiff = b.elo - a.elo
+      if (eloDiff !== 0) return eloDiff
+      return a.name.localeCompare(b.name)
+    })
+
+    return populated.map(({ elo: _elo, ...row }, index) => ({
+      ...row,
+      rank: index + 1,
+    }))
   },
 })
 
 export const getPlayerWeekPlacements = query({
   args: {
-    weekId: v.id("weeks"),
+    weekNumber: v.number(),
+    leagueTier: v.number(),
     playerId: v.id("players"),
   },
   handler: async (ctx, args) => {
-    // Get all matches for this week
+    const competition = await getCompetitionByWeekAndLeague(
+      ctx,
+      args.weekNumber,
+      args.leagueTier
+    )
+    if (!competition) return []
+
     const matches = await ctx.db
       .query("matches")
-      .withIndex("by_week_and_league", (q) => q.eq("weekId", args.weekId))
+      .withIndex("by_competition_match", (q) =>
+        q.eq("competitionId", competition._id)
+      )
       .collect()
 
-    const matchIds = new Set(matches.map((m) => m._id))
-    const matchMap = new Map(matches.map((m) => [m._id, m]))
+    const placements = (
+      await Promise.all(
+        matches.map(async (match) => {
+          const result = await ctx.db
+            .query("matchResults")
+            .withIndex("by_match_and_player", (q) =>
+              q.eq("matchId", match._id).eq("playerId", args.playerId)
+            )
+            .unique()
 
-    // Get results for this player
-    const playerResults = await ctx.db
-      .query("matchResults")
-      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
-      .collect()
+          if (!result) return null
 
-    // Filter and resolve
-    const weekResults = playerResults.filter((res) => matchIds.has(res.matchId))
+          return {
+            matchId: match._id,
+            matchNumber: match.matchNumber,
+            placement: result.placement,
+            pointsWon: result.pointsWon,
+            timeMs: result.timeMs,
+            dnf: result.dnf,
+          }
+        })
+      )
+    ).filter((result) => result !== null)
 
-    const placements = weekResults.map((res) => {
-      const match = matchMap.get(res.matchId)
-      return {
-        matchId: res.matchId,
-        matchNumber: match?.matchNumber ?? 0,
-        placement: res.placement,
-        pointsWon: res.pointsWon,
-        timeMs: res.timeMs,
-      }
-    })
-
-    placements.sort((a, b) => a.matchNumber - b.matchNumber)
-    return placements
+    return placements.sort((a, b) => a.matchNumber - b.matchNumber)
   },
 })

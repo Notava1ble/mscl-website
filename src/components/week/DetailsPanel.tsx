@@ -6,21 +6,23 @@ import { cn } from "@/lib/utils"
 import MatchData from "./MatchData"
 
 export function DetailsPanel({
-  weekId,
+  weekNumber,
+  leagueTier,
   playerId,
   matchId,
   rankedMatchId,
   playerStats,
   showBorder = true,
 }: {
-  weekId: string | null
+  weekNumber: number | null
+  leagueTier: number | null
   playerId: string | null
   matchId: string | null
   rankedMatchId: string | null
   playerStats: { name: string; totalPoints: number; rank: number } | null
   showBorder?: boolean
 }) {
-  if (playerId && weekId && playerStats) {
+  if (playerId && weekNumber !== null && leagueTier !== null && playerStats) {
     return (
       <div
         className={cn(
@@ -29,7 +31,8 @@ export function DetailsPanel({
         )}
       >
         <PlayerDetails
-          weekId={weekId as Id<"weeks">}
+          weekNumber={weekNumber}
+          leagueTier={leagueTier}
           playerId={playerId as Id<"players">}
           stats={playerStats}
         />
@@ -54,16 +57,19 @@ export function DetailsPanel({
 }
 
 function PlayerDetails({
-  weekId,
+  weekNumber,
+  leagueTier,
   playerId,
   stats,
 }: {
-  weekId: Id<"weeks">
+  weekNumber: number
+  leagueTier: number
   playerId: Id<"players">
   stats: { name: string; totalPoints: number; rank: number }
 }) {
   const placements = useQuery(api.weekView.getPlayerWeekPlacements, {
-    weekId,
+    weekNumber,
+    leagueTier,
     playerId,
   })
 
@@ -105,31 +111,34 @@ function PlayerDetails({
       </div>
 
       <div className="flex flex-col gap-3">
-        {placements.map((p) => {
+        {placements.map((placement) => {
           const placementText =
-            p.placement === 1
+            placement.placement === 1
               ? "1st"
-              : p.placement === 2
+              : placement.placement === 2
                 ? "2nd"
-                : p.placement === 3
+                : placement.placement === 3
                   ? "3rd"
-                  : `${p.placement}th`
+                  : placement.placement === null
+                    ? "DNF"
+                    : `${placement.placement}th`
 
-          const isPodium = p.placement <= 3
-          const isWinner = p.placement === 1
+          const isPodium =
+            placement.placement !== null && placement.placement <= 3
+          const isWinner = placement.placement === 1
 
           return (
-            <div key={p.matchId} className="flex flex-row items-center">
+            <div key={placement.matchId} className="flex flex-row items-center">
               <span className="w-32 text-sm text-muted-foreground capitalize max-md:w-20">
-                Match {p.matchNumber}
+                Match {placement.matchNumber}
               </span>
               <span
                 className={`w-20 text-sm font-bold tracking-tight ${isWinner ? "text-yellow-500" : isPodium ? "text-foreground" : "text-muted-foreground"}`}
               >
-                {p.pointsWon === 0 ? "DNF" : placementText}
+                {placement.dnf ? "DNF" : placementText}
               </span>
               <span className="text-sm text-muted-foreground tabular-nums">
-                +{p.pointsWon} points
+                +{placement.pointsWon} points
               </span>
             </div>
           )

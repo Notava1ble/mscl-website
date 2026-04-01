@@ -1,41 +1,38 @@
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { CustomButton } from "@/components/ui-custom/Button"
-import type { Id } from "../../../convex/_generated/dataModel"
 
 interface Week {
-  _id: Id<"weeks">
   weekNumber: number
-  isCurrent: boolean
+  isActive: boolean
 }
 
 interface WeekSelectorProps {
   weeks: Week[] | undefined
-  selectedWeekId: string | null
-  onSelect: (weekId: string) => void
+  selectedWeekNumber: number | null
+  onSelect: (weekNumber: number) => void
 }
 
 export function WeekSelector({
   weeks,
-  selectedWeekId,
+  selectedWeekNumber,
   onSelect,
 }: WeekSelectorProps) {
-  if (!weeks || weeks.length === 0 || !selectedWeekId) {
+  if (!weeks || weeks.length === 0 || selectedWeekNumber === null) {
     return <div className="h-10 w-48 animate-pulse rounded bg-muted"></div>
   }
 
-  const currentIndex = weeks.findIndex((w) => w._id === selectedWeekId)
+  const currentIndex = weeks.findIndex((week) => week.weekNumber === selectedWeekNumber)
   const currentWeek = weeks[currentIndex]
 
-  // weeks are sorted descending, so index 0 is latest
-  const hasNext = currentIndex > 0 // next is index - 1 (newer)
-  const hasPrev = currentIndex < weeks.length - 1 // prev is index + 1 (older)
+  const hasNext = currentIndex > 0
+  const hasPrev = currentIndex < weeks.length - 1
 
   const handlePrev = () => {
-    if (hasPrev) onSelect(weeks[currentIndex + 1]._id)
+    if (hasPrev) onSelect(weeks[currentIndex + 1].weekNumber)
   }
 
   const handleNext = () => {
-    if (hasNext) onSelect(weeks[currentIndex - 1]._id)
+    if (hasNext) onSelect(weeks[currentIndex - 1].weekNumber)
   }
 
   return (
