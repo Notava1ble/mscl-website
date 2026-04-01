@@ -20,7 +20,7 @@ export default defineSchema({
     weekNumber: v.number(),
     status: v.union(v.literal("active"), v.literal("ended")),
     maxTimeLimitMs: v.number(),
-    startingTime: v.number(),
+    startingTime: v.optional(v.number()),
   })
     .index("by_status", ["status"])
     .index("by_week_number", ["weekNumber"])
@@ -44,7 +44,7 @@ export default defineSchema({
   matches: defineTable({
     competitionId: v.id("competitions"),
     matchNumber: v.number(),
-    rankedMatchId: v.string(),
+    rankedMatchId: v.optional(v.string()),
   }).index("by_competition_match", ["competitionId", "matchNumber"]),
 
   matchResults: defineTable({

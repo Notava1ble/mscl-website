@@ -440,7 +440,6 @@ export const createEmptyMatch = internalMutation({
     const matchId = await ctx.db.insert("matches", {
       competitionId: competition._id,
       matchNumber: args.matchNumber,
-      rankedMatchId: "",
     })
 
     return {
