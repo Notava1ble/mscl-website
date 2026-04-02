@@ -47,10 +47,10 @@ export const getWeekMatches = query({
 
     return matches
       .map((match) => ({
-          _id: match._id,
-          matchNumber: match.matchNumber,
-          rankedMatchId: match.rankedMatchId ?? null,
-          winnerName: match.winnerName ?? "Unknown",
+        _id: match._id,
+        matchNumber: match.matchNumber,
+        rankedMatchId: match.rankedMatchId ?? null,
+        winnerName: match.winnerName ?? "Unknown",
       }))
       .sort((a, b) => a.matchNumber - b.matchNumber)
   },
@@ -71,32 +71,18 @@ export const getWeekStandings = query({
 
     const registrations = await ctx.db
       .query("registrations")
-      .withIndex("by_competition", (q) => q.eq("competitionId", competition._id))
+      .withIndex("by_competition", (q) =>
+        q.eq("competitionId", competition._id)
+      )
       .collect()
 
-    const populated = await Promise.all(
-      registrations.map(async (registration) => ({
-        playerId: registration.playerId,
-        name: registration.playerIgn,
-        totalPoints: registration.totalPoints,
-        movement: (registration.movementStatus ?? null) as
-          | "promoted"
-          | "demoted"
-          | "none"
-          | null,
-        elo: (await ctx.db.get(registration.playerId))?.elo ?? 0,
-      }))
-    )
-
-    populated.sort((a, b) => {
+    registrations.sort((a, b) => {
       const pointsDiff = b.totalPoints - a.totalPoints
       if (pointsDiff !== 0) return pointsDiff
-      const eloDiff = b.elo - a.elo
-      if (eloDiff !== 0) return eloDiff
-      return a.name.localeCompare(b.name)
+      return a.playerIgn.localeCompare(b.playerIgn)
     })
 
-    return populated.map(({ elo: _elo, ...row }, index) => ({
+    return registrations.map(({ ...row }, index) => ({
       ...row,
       rank: index + 1,
     }))
@@ -119,11 +105,11 @@ export const getPlayerWeekPlacements = query({
 
     return (
       await ctx.db
-      .query("matchResults")
-      .withIndex("by_player_and_competition", (q) =>
-        q.eq("playerId", args.playerId).eq("competitionId", competition._id)
-      )
-      .collect()
+        .query("matchResults")
+        .withIndex("by_player_and_competition", (q) =>
+          q.eq("playerId", args.playerId).eq("competitionId", competition._id)
+        )
+        .collect()
     )
       .map((result) => ({
         matchId: result.matchId,
