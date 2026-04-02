@@ -1,16 +1,10 @@
 import { v } from "convex/values"
-import type { Doc } from "./_generated/dataModel"
 import {
-  internalMutation,
   internalQuery,
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server"
-import {
-  buildMatchWinnerPatch,
-  buildMatchResultSnapshot,
-  getPlayerByDiscordId as lookupPlayerByDiscordId,
-} from "./lib/readModels"
+import { getPlayerByDiscordId as lookupPlayerByDiscordId } from "./lib/readModels"
 
 async function getCompetition(
   ctx: MutationCtx | QueryCtx,

@@ -167,20 +167,6 @@ http.route({
   ),
 })
 
-// This endpoint should not be used because the bot only edits single results by re-importing the whole match.
-//   path: "/api/write/match/result",
-//   method: "PATCH",
-//   handler: httpAction(async (ctx, request) =>
-//     runProtectedJsonRoute({
-//       request,
-//       schema: UpdateSingleResultSchema,
-//       routeLabel: "PATCH /api/write/match/result",
-//       run: (payload) =>
-//         ctx.runMutation(internal.writeApi.updateSingleResult, payload),
-//     })
-//   ),
-// })
-
 http.route({
   path: "/api/write/adjustment",
   method: "PATCH",
