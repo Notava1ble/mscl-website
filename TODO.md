@@ -1,4 +1,4 @@
-- [ ] Make sure listPlayerMatches Read API is not broken by the changes
+- [x] Make sure listPlayerMatches Read API is not broken by the changes
 - [x] In the unregisterPlayer API make sure the player can be removed only if they havent played any matches.
 - [ ] Make sure only one competition per league can be active at a time. This is enforced by the bot, but keep in mind.
 

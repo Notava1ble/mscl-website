@@ -195,7 +195,7 @@ export const adjustMatch = internalMutation({
   },
 })
 
-// Doesnt work as intended if player has switched leagues between now and the week being queried, will fix later
+// This query assumes that a player only plays in one competition per week. If not, it will throw an error.
 export const listPlayerMatches = internalQuery({
   args: {
     discordId: v.string(),
@@ -207,15 +207,14 @@ export const listPlayerMatches = internalQuery({
       throw new Error("Player not found")
     }
 
-    const competition = await ctx.db
-      .query("competitions")
-      .withIndex("by_league_and_week", (q) =>
-        q
-          .eq("leagueTier", player.currentLeagueNumber)
-          .eq("weekNumber", args.weekNumber)
+    const matchResults = await ctx.db
+      .query("matchResults")
+      .withIndex("by_week_and_player", (q) =>
+        q.eq("weekNumber", args.weekNumber).eq("playerId", player._id)
       )
-      .unique()
-    if (!competition) {
+      .collect()
+
+    if (matchResults.length === 0) {
       return {
         playerName: player.ign,
         weekNumber: args.weekNumber,
@@ -224,25 +223,25 @@ export const listPlayerMatches = internalQuery({
       }
     }
 
+    const competitionId = matchResults[0].competitionId
+    const leagueTier = matchResults[0].leagueTier
+    const allSameComp = matchResults.every(
+      (r) => r.competitionId === competitionId
+    )
+    if (!allSameComp)
+      throw new Error(
+        `Player has results across multiple competitions in week ${args.weekNumber}`
+      )
+
+    // Only get the matches this player played in.
+    const matchIds = [...new Set(matchResults.map((r) => r.matchId))]
     const matchesById = new Map(
-      (
-        await ctx.db
-          .query("matches")
-          .withIndex("by_competition_match", (q) =>
-            q.eq("competitionId", competition._id)
-          )
-          .collect()
-      ).map((match) => [match._id, match])
+      (await Promise.all(matchIds.map((id) => ctx.db.get(id))))
+        .filter(Boolean)
+        .map((m) => [m!._id, m!])
     )
 
-    const matches = (
-      await ctx.db
-        .query("matchResults")
-        .withIndex("by_player_and_competition", (q) =>
-          q.eq("playerId", player._id).eq("competitionId", competition._id)
-        )
-        .collect()
-    )
+    const matches = matchResults
       .sort((a, b) => a.matchNumber - b.matchNumber)
       .map((result) => ({
         rankedMatchId: matchesById.get(result.matchId)?.rankedMatchId ?? null,
@@ -255,7 +254,8 @@ export const listPlayerMatches = internalQuery({
     return {
       playerName: player.ign,
       weekNumber: args.weekNumber,
-      leagueTier: competition.leagueTier,
+      currentLeagueNumber: player.currentLeagueNumber,
+      weekLeagueNumber: leagueTier,
       matches,
     }
   },
