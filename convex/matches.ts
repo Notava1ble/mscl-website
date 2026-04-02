@@ -38,7 +38,23 @@ export const listPlayerMatches = internalQuery({
     discordId: v.string(),
     weekNumber: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    playerName: string
+    weekNumber: number
+    currentLeagueNumber: number
+    weekLeagueNumber: number | null
+    matches: {
+      matchNumber: number
+      rankedMatchId: string | null
+      pointsWon: number
+      timeMs: number | null
+      placement: number | null
+      dnf: boolean
+    }[]
+  }> => {
     const player = await getPlayerByDiscordId(ctx, args.discordId)
     if (!player) {
       throw new Error("Player not found")
@@ -55,7 +71,8 @@ export const listPlayerMatches = internalQuery({
       return {
         playerName: player.ign,
         weekNumber: args.weekNumber,
-        leagueTier: player.currentLeagueNumber,
+        currentLeagueNumber: player.currentLeagueNumber,
+        weekLeagueNumber: null,
         matches: [],
       }
     }
@@ -81,6 +98,7 @@ export const listPlayerMatches = internalQuery({
     const matches = matchResults
       .sort((a, b) => a.matchNumber - b.matchNumber)
       .map((result) => ({
+        matchNumber: result.matchNumber,
         rankedMatchId: matchesById.get(result.matchId)?.rankedMatchId ?? null,
         pointsWon: result.pointsWon,
         timeMs: result.timeMs,

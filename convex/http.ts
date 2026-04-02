@@ -160,7 +160,7 @@ http.route({
     runProtectedJsonRoute({
       request,
       schema: ImportMatchSchema,
-      routeLabel: "POST /api/write/match",
+      routeLabel: "POST /api/write/match/results",
       run: (payload) =>
         ctx.runMutation(internal.writeApi.importMatchData, payload),
     })
