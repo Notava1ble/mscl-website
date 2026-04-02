@@ -82,9 +82,12 @@ export const getWeekStandings = query({
       return a.playerIgn.localeCompare(b.playerIgn)
     })
 
-    return registrations.map(({ ...row }, index) => ({
-      ...row,
+    return registrations.map((registration, index) => ({
       rank: index + 1,
+      playerId: registration.playerId,
+      name: registration.playerIgn,
+      totalPoints: registration.totalPoints,
+      movement: registration.movementStatus ?? null,
     }))
   },
 })

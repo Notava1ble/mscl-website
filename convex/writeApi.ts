@@ -32,7 +32,9 @@ type CompetitionDoc = Doc<"competitions">
 type PlayerDoc = Doc<"players">
 type MatchDoc = Doc<"matches">
 type RegistrationDoc = Doc<"registrations">
+type MatchResultDoc = Doc<"matchResults">
 
+// PII info is already public in the MCSRRanked api, so nothing im logging/storing is sensitive.
 function fail(status: number, error: string): ApiFailure {
   console.error(`[Write API] ${status} ${error}`)
   return { ok: false, status, error }
@@ -629,11 +631,25 @@ export const importMatchData = internalMutation({
       return fail(500, "Match could not be created.")
     }
 
+    const existingResults = await ctx.db
+      .query("matchResults")
+      .withIndex("by_match", (q) => q.eq("matchId", match._id))
+      .collect()
+    const existingResultsByPlayerId = new Map<
+      Id<"players">,
+      MatchResultDoc
+    >(existingResults.map((result) => [result.playerId, result]))
+
     const pointDeltasByPlayer = new Map<Id<"players">, number>()
     const playersForWinner: Array<{
       player: PlayerDoc
       placement: number | null
     }> = []
+    const preparedResults: Array<{
+      player: PlayerDoc
+      result: (typeof args.results)[number]
+    }> = []
+
     for (const result of args.results) {
       const player = await getPlayerByDiscordId(ctx, result.discordId)
       if (!player) {
@@ -656,13 +672,28 @@ export const importMatchData = internalMutation({
         player,
         placement: result.placement,
       })
+      preparedResults.push({ player, result })
+    }
 
-      const existingResult = await ctx.db
-        .query("matchResults")
-        .withIndex("by_match_and_player", (q) =>
-          q.eq("matchId", match._id).eq("playerId", player._id)
-        )
-        .unique()
+    const incomingPlayerIds = new Set(
+      preparedResults.map(({ player }) => player._id)
+    )
+    for (const existingResult of existingResults) {
+      if (incomingPlayerIds.has(existingResult.playerId)) {
+        continue
+      }
+
+      await ctx.db.delete(existingResult._id)
+      pointDeltasByPlayer.set(
+        existingResult.playerId,
+        (pointDeltasByPlayer.get(existingResult.playerId) ?? 0) -
+          existingResult.pointsWon
+      )
+      existingResultsByPlayerId.delete(existingResult.playerId)
+    }
+
+    for (const { player, result } of preparedResults) {
+      const existingResult = existingResultsByPlayerId.get(player._id)
 
       if (existingResult) {
         const pointDelta = result.pointsWon - existingResult.pointsWon
@@ -756,6 +787,13 @@ export const updateSingleResult = internalMutation({
 
     if (!matchResult) {
       return fail(404, "Match result not found.")
+    }
+
+    if (matchResult.placement !== null || matchResult.pointsWon !== 0) {
+      return fail(
+        409,
+        "Single-result edits are not supported after placements or points are seeded. Recompute the full match and re-import all results."
+      )
     }
 
     await ctx.db.patch(matchResult._id, {
