@@ -892,6 +892,9 @@ export const setPointAdjustment = internalMutation({
   },
 })
 
+// This endpoint is used only once per competition. If a mistake is made,
+// the admin should use the api path: "/api/write/player/league",
+// to update the league outside of the competition.
 export const processMovements = internalMutation({
   args: {
     leagueTier: v.number(),
@@ -1004,6 +1007,50 @@ export const processMovements = internalMutation({
       promotedCount: promotedSet.size,
       demotedCount: demotedSet.size,
       unchangedCount,
+    }
+  },
+})
+
+export const updatePlayerLeague = internalMutation({
+  args: {
+    discordId: v.string(),
+    leagueTier: v.number(),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<
+    ApiResult<{
+      playerId: Id<"players">
+      previousLeagueTier: number
+      leagueTier: number
+    }>
+  > => {
+    await ensureLeague(ctx, args.leagueTier)
+
+    const player = await getPlayerByDiscordId(ctx, args.discordId)
+    if (!player) {
+      return fail(404, "Player not found.")
+    }
+
+    if (player.currentLeagueNumber === args.leagueTier) {
+      return {
+        ok: true,
+        playerId: player._id,
+        previousLeagueTier: player.currentLeagueNumber,
+        leagueTier: player.currentLeagueNumber,
+      }
+    }
+
+    await ctx.db.patch(player._id, {
+      currentLeagueNumber: args.leagueTier,
+    })
+
+    return {
+      ok: true,
+      playerId: player._id,
+      previousLeagueTier: player.currentLeagueNumber,
+      leagueTier: args.leagueTier,
     }
   },
 })

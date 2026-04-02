@@ -10,6 +10,7 @@ import {
   MovementSchema,
   PointAdjustmentSchema,
   RegisterPlayerSchema,
+  UpdatePlayerLeagueSchema,
   UnregisterPlayerSchema,
 } from "./lib/validators"
 import {
@@ -106,6 +107,20 @@ http.route({
       routeLabel: "DELETE /api/write/player",
       run: (payload) =>
         ctx.runMutation(internal.writeApi.unregisterPlayer, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/player/league",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: UpdatePlayerLeagueSchema,
+      routeLabel: "PATCH /api/write/player/league",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.updatePlayerLeague, payload),
     })
   ),
 })

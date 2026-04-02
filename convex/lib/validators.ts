@@ -38,6 +38,11 @@ export const UnregisterPlayerSchema = z.object({
   discordId: nonEmptyString("discordId"),
 })
 
+export const UpdatePlayerLeagueSchema = z.object({
+  discordId: nonEmptyString("discordId"),
+  leagueTier: positiveInt("leagueTier"),
+})
+
 export const CreateEmptyMatchSchema = z.object({
   leagueTier: positiveInt("leagueTier"),
   weekNumber: positiveInt("weekNumber"),
