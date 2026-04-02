@@ -80,6 +80,7 @@ All writes are done via Convex HTTP actions in `convex/http.ts`.
 - **Endpoint:** `POST /api/write/player` & `DELETE /api/write/player`
 - **Bot Commands:** `/reg`, `/admin_reg` (POST) | `/unreg`, `/remove` (DELETE).
 - **Behavior:** Upserts the player profile and creates/removes the `registrations` link for that competition.
+  - **Constraint:** Unregistering a player is blocked if they have existing match results for the competition.
 
 **4. Match/Seed Management**
 
@@ -113,7 +114,7 @@ The frontend uses Convex React hooks (`useQuery`) to display real-time leaderboa
 
 ### 5.1 Weekly/Current Leaderboard
 
-## **Intended user goal:** See the standings for a specific league and week (including live ongoing weeks).
+- **Intended user goal:** See the standings for a specific league and week (including live ongoing weeks).
 
 ## 6. Edge Cases & System Guarantees
 
@@ -123,7 +124,7 @@ The frontend uses Convex React hooks (`useQuery`) to display real-time leaderboa
 
 2. **Editing Match Times**
    - Because placements and points depend on _everyone's_ times, there is no `/edit-single-result` API.
-   - The bot handles edits locally, computes new placements, and uses the `POST /api/write/match` bulk endpoint to overwrite the entire match state safely.
+   - The bot handles edits locally, computes new placements, and uses the `POST /api/write/match/results` bulk endpoint to overwrite the entire match state safely.
 
 3. **Denormalized Sorting**
    - `totalPoints` is pre-calculated and stored directly on the `registrations` table during match imports and point adjustments. This prevents the frontend from needing complex aggregation logic, ensuring $O(1)$ fast reads for leaderboards.

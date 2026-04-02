@@ -11,7 +11,6 @@ import {
   PointAdjustmentSchema,
   RegisterPlayerSchema,
   UnregisterPlayerSchema,
-  UpdateSingleResultSchema,
 } from "./lib/validators"
 import {
   extractRequestBody,

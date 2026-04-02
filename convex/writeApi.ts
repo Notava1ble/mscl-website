@@ -9,7 +9,6 @@ import {
   ensureLeague,
   ensureWeekHasActiveCompetition,
   getPlayerByDiscordId,
-  recomputeMatchWinnerSnapshot,
   syncPlayerRegistrationSnapshots,
   syncPlayerWinnerSnapshots,
 } from "./lib/readModels"
@@ -51,6 +50,16 @@ async function getCompetition(
       q.eq("leagueTier", leagueTier).eq("weekNumber", weekNumber)
     )
     .unique()
+}
+
+function ensureCompetitionWritable(
+  competition: CompetitionDoc
+): ApiFailure | null {
+  if (competition.status === "ended") {
+    return fail(403, "Competition already finalized.")
+  }
+
+  return null
 }
 
 async function getMatch(
@@ -316,6 +325,10 @@ export const registerPlayer = internalMutation({
     if (!competition) {
       return fail(404, "Competition not found.")
     }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
+    }
 
     const normalizedLowercaseIgn = args.ign.toLowerCase()
     let player = await getPlayerByDiscordId(ctx, args.discordId)
@@ -409,6 +422,10 @@ export const unregisterPlayer = internalMutation({
     if (!competition) {
       return fail(404, "Competition not found.")
     }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
+    }
 
     const player = await getPlayerByDiscordId(ctx, args.discordId)
     if (!player) {
@@ -468,6 +485,10 @@ export const createEmptyMatch = internalMutation({
     if (!competition) {
       return fail(404, "Competition not found.")
     }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
+    }
 
     const existingMatch = await getMatch(ctx, competition._id, args.matchNumber)
     if (existingMatch) {
@@ -518,6 +539,10 @@ export const clearMatchResults = internalMutation({
     )
     if (!competition) {
       return fail(404, "Competition not found.")
+    }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
     }
 
     const match = await getMatch(ctx, competition._id, args.matchNumber)
@@ -596,6 +621,10 @@ export const importMatchData = internalMutation({
     if (!competition) {
       return fail(404, "Competition not found.")
     }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
+    }
 
     const seenDiscordIds = new Set<string>()
     const duplicateDiscordId = args.results.find((result) => {
@@ -635,10 +664,9 @@ export const importMatchData = internalMutation({
       .query("matchResults")
       .withIndex("by_match", (q) => q.eq("matchId", match._id))
       .collect()
-    const existingResultsByPlayerId = new Map<
-      Id<"players">,
-      MatchResultDoc
-    >(existingResults.map((result) => [result.playerId, result]))
+    const existingResultsByPlayerId = new Map<Id<"players">, MatchResultDoc>(
+      existingResults.map((result) => [result.playerId, result])
+    )
 
     const pointDeltasByPlayer = new Map<Id<"players">, number>()
     const playersForWinner: Array<{
@@ -767,6 +795,10 @@ export const updateSingleResult = internalMutation({
     if (!competition) {
       return fail(404, "Competition not found.")
     }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
+    }
 
     const match = await getMatch(ctx, competition._id, args.matchNumber)
     if (!match) {
@@ -829,6 +861,10 @@ export const setPointAdjustment = internalMutation({
     if (!competition) {
       return fail(404, "Competition not found.")
     }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
+    }
 
     const player = await getPlayerByDiscordId(ctx, args.discordId)
     if (!player) {
@@ -881,6 +917,10 @@ export const processMovements = internalMutation({
     )
     if (!competition) {
       return fail(404, "Competition not found.")
+    }
+    const competitionLock = ensureCompetitionWritable(competition)
+    if (competitionLock) {
+      return competitionLock
     }
 
     const demotedLookup = new Set(args.demotedDiscordIds)
