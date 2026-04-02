@@ -3,27 +3,27 @@
 This document is the **living spec** for the MSCL website. It describes both:
 
 - The **intended behavior** of the system, and
-- The **current implementation** in this repo, including known deviations from the original plan.
+- The **current implementation** in this repo, focusing on the integration between the Discord Bot, the Convex Backend, and the React Frontend.
 
 ---
 
 ## 1. Product Overview
 
-The MSCL website is a public **leaderboard and stats portal** for a multi‑league, weekly tournament:
+The MSCL website is a public **leaderboard and stats portal** for a multi‑league, weekly Minecraft speedrunning tournament:
 
 - Players are placed into **tiered leagues** (e.g. Tier 1–6).
-- Each week, players compete in **matches** within their league.
-- At the end of each week, players can be **promoted, relegated, or remain** based on results.
+- Each week, players compete in **matches (seeds)** within their league.
+- At the end of each week, players can be **promoted, relegated, or remain** in their tier.
 
-The website is **not** the source of truth for competition logic:
+The website is **not** the source of truth for competition logic.
 
-- A separate **organizer app**:
-  - Decides format, point rules, tie‑breaking, and moderation.
-  - Computes end‑of‑week league assignments and ELO changes.
-  - Calls this project’s HTTP APIs to persist that data in Convex.
-- The MSCL website:
-  - Stores the data in a normalized schema.
-  - Exposes **read‑only** views for spectators and players.
+- A **Discord Bot (Node.js)**:
+  - Manages registrations, match time tracking, tie-breakers, DNF penalties, and point distribution.
+  - Controls the start (`/nm`) and end (`/em`) of the weekly competitions.
+  - Acts as the "Game Engine", calling this project’s HTTP APIs to persist data.
+- The **MSCL website (Convex + Astro/React)**:
+  - Validates and stores the data in a highly indexed, relational schema.
+  - Exposes **read‑only** real-time views and historical stats for spectators and players.
 
 ---
 
@@ -32,207 +32,98 @@ The website is **not** the source of truth for competition logic:
 - **Frontend**: Astro (static pages) + React islands.
 - **UI**: shadcn/ui + custom components.
 - **Backend & DB**: Convex (document DB, queries, mutations, HTTP actions).
-- **Frontend data access**: Convex React `useQuery`.
+- **Game Server / Ingestion**: Discord.js Bot.
 
 ---
 
 ## 3. Data Model (Convex)
 
-Authoritative definitions are in `convex/schema.ts`. Conceptually:
+Authoritative definitions are in `convex/schema.ts`. The database is heavily denormalized to ensure fast frontend queries.
 
-- `players` – players, their ELO, and their current league.
-- `leagues` – named tiers, ordered by `tierLevel` (1 = highest).
-- `weeks` – numbered weeks, with one `isCurrent` week at a time.
-- `matches` – per‑week, per‑league matches, with a `matchNumber` within that week+league.
-- `matchResults` – per‑player results for each match (points, time, placement).
-- `weeklyStandings` – computed, denormalized standings per `(week, league, player)` with `movement` status.
-
-This schema is designed to support:
-
-- Live league standings.
-- Week‑end promotion/relegation computation.
-- Per‑player historical stats.
+- `players` – Global player profiles (`discordId`, `ign`, `lowercaseIgn`, `elo`, `currentLeagueNumber`).
+- `competitions` – Represents a specific week in a specific league. Includes `leagueTier`, `weekNumber`, and `status` (`"active"` | `"ended"`).
+- `registrations` – The central junction linking a player to a competition. Stores `manualAdjustmentPoints`, `totalPoints`, and week-end `movementStatus` (`promoted`, `demoted`, `none`).
+- `matches` – Individual seeds/matches within a competition.
+- `matchResults` – A specific player's performance on a specific match (`timeMs`, `dnf`, `placement`, `pointsWon`).
 
 ---
 
-## 4. Ingestion APIs (Organizer‑Facing)
+## 4. Ingestion APIs (Discord Bot-Facing)
 
-All writes are done via Convex HTTP actions in `convex/http.ts`. These APIs are intended for the organizer app; the public website uses only Convex queries.
+All writes are done via Convex HTTP actions in `convex/http.ts`.
 
-### 4.1 Authentication and Validation
+### 4.1 Authentication and Safety
 
-- Every ingestion endpoint requires an `x-api-key` header.
-- The key is compared against `process.env.WRITER_API_KEY` using a timing‑safe comparison.
-- Missing or invalid keys return JSON errors with appropriate status codes (401/403/500).
-- Request bodies are validated with zod schemas in `convex/lib/validators.ts`:
-  - `PlayersSchema` for bulk players.
-  - `MatchSchema` for a single match.
-  - `WeekTransitionSchema` for end‑of‑week transitions.
+- Every ingestion endpoint requires an `x-api-key` header matching `process.env.WEBSITE_API_KEY`.
+- Validation is done using a timing-safe crypto comparison.
+- **Finalization Lock:** If a competition's `status` is `"ended"`, structural endpoints (like `/api/write/competition`) will block mutations with a `403 Forbidden` to protect historical integrity.
 
-### 4.2 `POST /api/write/players`
+### 4.2 Endpoints and Bot Command Mapping
 
-**Purpose:** Create or update players and their league tiers.
+**1. Create/Restart Competition**
 
-- **Body:** array of `{ name: string; elo: number; leagueTier: 1..6 }`.
+- **Endpoint:** `POST /api/write/competition`
+- **Bot Command:** `/nm`
 - **Behavior:**
-  - Ensures `leagues` rows exist for each `leagueTier` (auto‑creates `Tier <tier>` if missing).
-  - For each object:
-    - Looks up a player by `name`.
-    - If found: updates `elo` and `currentLeagueId`.
-    - If not found: inserts a new `players` row.
-- **Response:** `200 { success: true, updated: <count> }` on success.
+  - If the week is `"ended"`, returns 403.
+  - If it already exists as `"active"` (admin resetting state), wipes all previous registrations/matches for that week and restarts it.
+  - Otherwise, creates a new `"active"` competition.
 
-### 4.3 `POST /api/write/match`
+**2. Update Competition Status**
 
-**Purpose:** Upsert a single match and its results.
+- **Endpoint:** `PATCH /api/write/competition/status`
+- **Bot Commands:** `/em` (sets to `"ended"`), `/unend` (sets to `"active"`).
+- **Behavior:** Locks or unlocks the competition from further structural overwrites.
 
-- **Body:**
-  - `weekNumber: number >= 1`
-  - `matchNumber: number >= 1`
-  - `leagueTier: 1..6`
-  - `results: Array<{ playerName; pointsWon; timeMs; placement }>`
-- **Intended behavior:**
-  - Ensure a `weeks` row exists for `weekNumber` (creating it if needed).
-  - Ensure a `leagues` row exists for `leagueTier`.
-  - Find or create a `matches` row keyed by `(weekId, leagueId, matchNumber)`.
-  - Delete any existing `matchResults` for that `matchId`.
-  - For each result:
-    - Validate `placement` is a positive integer and unique within the match.
-    - Upsert `players` by `playerName` (creating players with default ELO if necessary).
-    - Insert `matchResults` rows with `pointsWon`, `timeMs`, and `placement`.
-- **Guarantee:** Posting the same `(weekNumber, leagueTier, matchNumber)` again fully replaces that match’s results.
+**3. Player Registration**
 
-### 4.4 `POST /api/write/weeks/transition`
+- **Endpoint:** `POST /api/write/player` & `DELETE /api/write/player`
+- **Bot Commands:** `/reg`, `/admin_reg` (POST) | `/unreg`, `/remove` (DELETE).
+- **Behavior:** Upserts the player profile and creates/removes the `registrations` link for that competition.
 
-**Purpose:** Finalize a week’s results, compute standings and movement, and advance to a new current week.
+**4. Match/Seed Management**
 
-- **Body:**
-  - `weekNumber: number` – the week being finalized.
-  - `newWeek: number` – the week that will become current.
-  - `overwrite: boolean` – whether to replace existing standings for `weekNumber`.
-  - `players: Array<{ name: string; elo: number; leagueTier: 1..6 }>` – declarative “next state” for all players.
-- **Behavior (high‑level):**
-  1. Ensure a `weeks` row exists for `weekNumber`.
-  2. Check for existing `weeklyStandings` for that week:
-     - If they exist and `overwrite` is `false`:
-       - Return a structured `{ success: false, status: 409, error: ... }`.
-     - If they exist and `overwrite` is `true`:
-       - Delete them and proceed.
-  3. Upsert players:
-     - For each entry in `players`:
-       - Ensure a `leagues` row for `leagueTier`.
-       - Upsert the player by `name`.
-       - Determine `movement` by comparing old and new tiers (`promoted`, `relegated`, `stayed`, `new`).
-       - Update `elo` and `currentLeagueId`.
-       - Group players by their **old** tier.
-  4. Compute `weeklyStandings` for each old tier:
-     - Fetch all `matches` for `(weekId, oldLeagueId)`.
-     - Aggregate `pointsWon` per `playerId` from `matchResults`.
-     - Rank players by `totalPoints DESC`.
-     - Insert `weeklyStandings` rows with:
-       - `finalPlacement`, `totalPoints`, `movement`, `leagueNumber`, `weekNumber`, etc.
-  5. Advance the current week:
-     - Set `isCurrent = false` on all existing current weeks.
-     - Insert a new `weeks` row `{ weekNumber: newWeek, isCurrent: true }`.
-- **Response:** `200 { success: true, count: <players_processed> }` on success, or an error JSON if blocked by `overwrite` rules.
+- **Endpoint:** `POST /api/write/match/create` & `DELETE /api/write/match/clear`
+- **Bot Commands:** `/ns` (Creates empty match), `/clear` (Wipes results for a match).
+
+**5. Import/Update Match Results**
+
+- **Endpoint:** `POST /api/write/match/results`
+- **Bot Commands:** `/import`, `/edit`, `/r`.
+- **Behavior:** Receives a full array of results. Upserts the match and all player `matchResults`.
+  - _Note:_ Even when editing a single player's time (`/edit`), the bot recalculates all placements locally and pushes the _entire_ match to this endpoint to guarantee point consistency.
+
+**6. Manual Point Adjustments**
+
+- **Endpoint:** `PATCH /api/write/adjustment`
+- **Bot Command:** `/adjust`
+- **Behavior:** Updates `manualAdjustmentPoints` on a player's `registrations` row, which propagates to their `totalPoints`.
+
+**7. League Movements (Promotions/Demotions)**
+
+- **Endpoint:** `PATCH /api/write/movements`
+- **Bot Command:** `/relegate`
+- **Behavior:** Receives lists of promoted/demoted Discord IDs. Updates their `registrations.movementStatus` and shifts their global `currentLeagueNumber`.
 
 ---
 
 ## 5. Frontend Behavior & Queries
 
-The Astro frontend is static; React islands use Convex queries to drive real‑time views.
+The frontend uses Convex React hooks (`useQuery`) to display real-time leaderboards.
 
-### 5.1 `/leaderboard` – League Leaderboard (Current Implementation)
+### 5.1 Weekly/Current Leaderboard
 
-**Intended user goal:** See the current ordering of players within each league and drill into individual stats.
+## **Intended user goal:** See the standings for a specific league and week (including live ongoing weeks).
 
-**Queries used:**
+## 6. Edge Cases & System Guarantees
 
-- `leagues.listLeagues`:
-  - Returns all leagues ordered by `tierLevel ASC`.
-  - Drives the tabbed league selector.
-- `leaderboard.getLeagueStandings({ leagueId })`:
-  - Loads all `players` in the given league.
-  - Sorts by `elo DESC`.
-  - Returns `{ rank, playerId, name, elo }`.
+1. **Mistake Deletion via `/dm`**
+   - The bot has a `/dm` command to wipe its local memory of an ongoing setup.
+   - The API handles this implicitly: `/dm` does not fire an API call. The website simply holds the abandoned `"active"` data. If `/nm` is called again later for that week, the API's "Safe Upsert" cleanly wipes the ghost data and restarts.
 
-**UI behavior:**
+2. **Editing Match Times**
+   - Because placements and points depend on _everyone's_ times, there is no `/edit-single-result` API.
+   - The bot handles edits locally, computes new placements, and uses the `POST /api/write/match` bulk endpoint to overwrite the entire match state safely.
 
-- League tabs:
-  - Initially select the league from `?league=<tier>` or default to the first league.
-  - Updating the tab:
-    - Changes selected league.
-    - Updates the query param via `history.pushState`.
-    - Triggers a re‑query.
-- Standings table:
-  - Shows ELO‑based ranking for players in the selected league.
-  - On row click, opens a player stats side panel.
-
-> **Deviation from original vision:**  
-> The original spec described a “current leaderboard” based on **current‑week points** and match aggregation.  
-> The current implementation shows **ELO‑based standings**, independent of weeks and match results.
-
-### 5.2 Player Stats Panel
-
-**Query used:** `playerStats.getPlayerStats({ playerId })`.
-
-This query:
-
-- Loads the `players` row and its `currentLeague`.
-- Builds:
-  - `leagueHistory` from `weeklyStandings`.
-  - `weeklyBreakdown` from `matchResults` and `matches`.
-  - A `summary` of match counts and times.
-
-The UI:
-
-- Shows player name, ELO, and a visual tier badge.
-- Shows aggregate stats (matches, average time, best time).
-- For each week:
-  - Week number and league.
-  - Movement (promoted/relegated/stayed/new).
-  - Totals and per‑match placements/times.
-
-This effectively provides a **per‑player historical view** across weeks and leagues.
-
-### 5.3 Historical / Week‑Based Leaderboards (Planned)
-
-- A “current leaderboard” based on the current week’s aggregated `pointsWon`.
-- A separate “historical leaderboard” for past weeks with promotion/relegation arrows.
-
-The current codebase has the data needed (`weeklyStandings`, `matchResults`, `weeks`), but:
-
-- There is no dedicated Convex query for “standings for week N and league L”.
-- There is no Astro page for `/week` or similar.
-- A UI link to `/week?league=<tier>&week=latest` exists but points to a non‑existent page.
-
----
-
-## 6. Edge Cases & Guarantees
-
-1. **Draws / scoring rules**
-   - All scoring decisions (including draws) are handled by the organizer app.
-   - The backend stores the resulting `pointsWon` values as provided.
-2. **Players that don't participate for the week**
-   - Represented in the payload by:
-     - Omission from `results`.
-3. **Score moderation**
-   - Supported by:
-     - The upsert semantics of `/api/write/match` for individual matches.
-     - The `overwrite` flag of `/api/write/weeks/transition` for weekly standings.
-4. **New player onboarding**
-   - If an unknown `name` appears in a players/match/transition payload, a new `players` row is created automatically.
-5. **Single current week**
-   - The system enforces that at most one week is `isCurrent == true` at a time, by patching old records to `false` on each transition.
-
----
-
-## 9. Summary
-
-- The current system:
-  - Provides robust ingestion APIs for players, matches, and week transitions.
-  - Maintains normalized data and denormalized weekly standings.
-  - Exposes an ELO‑based league leaderboard and deep per‑player stats.
-- With relatively small additions (queries + UI), it can:
-  - Support true week‑based current and historical leaderboards.
-  - Align fully with the original tournament spec once the open questions above are decided.
+3. **Denormalized Sorting**
+   - `totalPoints` is pre-calculated and stored directly on the `registrations` table during match imports and point adjustments. This prevents the frontend from needing complex aggregation logic, ensuring $O(1)$ fast reads for leaderboards.
