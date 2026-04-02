@@ -397,7 +397,6 @@ export const unregisterPlayer = internalMutation({
     ApiResult<{
       competitionId: Id<"competitions">
       playerId: Id<"players">
-      deletedMatchResults: number
     }>
   > => {
     const competition = await getCompetition(
@@ -419,36 +418,26 @@ export const unregisterPlayer = internalMutation({
       return fail(404, "Registration not found.")
     }
 
+    const playerResults = await ctx.db
+      .query("matchResults")
+      .withIndex("by_player_and_competition", (q) =>
+        q.eq("playerId", player._id).eq("competitionId", competition._id)
+      )
+      .collect()
+
+    if (playerResults.length > 0) {
+      return fail(
+        403,
+        "Player cannot be unregistered with existing match results."
+      )
+    }
+
     await ctx.db.delete(registration._id)
-
-    let deletedMatchResults = 0
-    const affectedMatchIds = new Set<Id<"matches">>()
-    while (true) {
-      const batch = await ctx.db
-        .query("matchResults")
-        .withIndex("by_player_and_competition", (q) =>
-          q.eq("playerId", player._id).eq("competitionId", competition._id)
-        )
-        .take(128)
-
-      if (batch.length === 0) break
-
-      for (const matchResult of batch) {
-        affectedMatchIds.add(matchResult.matchId)
-        await ctx.db.delete(matchResult._id)
-        deletedMatchResults += 1
-      }
-    }
-
-    for (const matchId of affectedMatchIds) {
-      await recomputeMatchWinnerSnapshot(ctx, matchId)
-    }
 
     return {
       ok: true,
       competitionId: competition._id,
       playerId: player._id,
-      deletedMatchResults,
     }
   },
 })
