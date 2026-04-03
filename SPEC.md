@@ -77,15 +77,15 @@ All writes are done via Convex HTTP actions in `convex/http.ts`.
 
 **3. Player Registration**
 
-- **Endpoint:** `POST /api/write/player` & `DELETE /api/write/player`
-- **Bot Commands:** `/reg`, `/admin_reg` (POST) | `/unreg`, `/remove` (DELETE).
+- **Endpoint:** `POST /api/write/player` & `PATCH /api/write/player/unregister`
+- **Bot Commands:** `/reg`, `/admin_reg` (POST) | `/unreg`, `/remove` (PATCH).
 - **Behavior:** Upserts the player profile and creates/removes the `registrations` link for that competition.
   - Player identity is keyed by Minecraft UUID, not Discord ID.
   - **Constraint:** Unregistering a player is blocked if they have existing match results for the competition.
 
 **4. Match/Seed Management**
 
-- **Endpoint:** `POST /api/write/match/create` & `DELETE /api/write/match/clear`
+- **Endpoint:** `POST /api/write/match/create` & `PATCH /api/write/match/clear`
 - **Bot Commands:** `/ns` (Creates empty match), `/clear` (Wipes results for a match).
 
 **5. Import/Update Match Results**

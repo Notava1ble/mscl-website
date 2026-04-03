@@ -98,13 +98,13 @@ http.route({
 })
 
 http.route({
-  path: "/api/write/player",
-  method: "DELETE",
+  path: "/api/write/player/unregister",
+  method: "PATCH",
   handler: httpAction(async (ctx, request) =>
     runProtectedJsonRoute({
       request,
       schema: UnregisterPlayerSchema,
-      routeLabel: "DELETE /api/write/player",
+      routeLabel: "PATCH /api/write/player",
       run: (payload) =>
         ctx.runMutation(internal.writeApi.unregisterPlayer, payload),
     })
@@ -141,12 +141,12 @@ http.route({
 
 http.route({
   path: "/api/write/match/clear",
-  method: "DELETE",
+  method: "PATCH",
   handler: httpAction(async (ctx, request) =>
     runProtectedJsonRoute({
       request,
       schema: ClearMatchResultsSchema,
-      routeLabel: "DELETE /api/write/match/clear",
+      routeLabel: "PATCH /api/write/match/clear",
       run: (payload) =>
         ctx.runMutation(internal.writeApi.clearMatchResults, payload),
     })

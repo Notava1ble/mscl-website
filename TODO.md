@@ -11,7 +11,7 @@
 - [ ] **Player Registration (`/reg` & `/admin_reg`)**: Call `POST /api/write/player` to push the player's UUID, IGN, and ELO to the website.
 - [ ] **Roster Lock (`/unreg` & `/remove`)**: Allow unregistering only if the player hasn't played any matches. Call the unregister API.
 - [ ] **Seed Creation (`/ns`)**: Call `POST /api/write/match/create` so the website creates the empty match container.
-- [ ] **Clear Seed (`/clear`)**: Call `DELETE /api/write/match/clear` to wipe all results for that specific seed on the website.
+- [ ] **Clear Seed (`/clear`)**: Call `PATCH /api/write/match/clear` to wipe all results for that specific seed on the website.
 - [ ] **Point Adjustments (`/adjust`)**: Call `PATCH /api/write/adjustment` with the player's new total `manualAdjustmentPoints`.
 - [ ] **Promotions & Demotions (`/relegate`)**: Call `PATCH /api/write/movements` passing the arrays of `promotedUuids` and `demotedUuids` from the `applyLeagueMovements` logic.
 - [ ] **Importing Matches**: import a match using the `POST /api/write/match/import` endpoint.
