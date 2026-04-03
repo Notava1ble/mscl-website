@@ -4,32 +4,12 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server"
-import { getPlayerByDiscordId as lookupPlayerByDiscordId } from "./lib/readModels"
-
-async function getCompetition(
-  ctx: MutationCtx | QueryCtx,
-  weekNumber: number,
-  leagueTier: number
-) {
-  return await ctx.db
-    .query("competitions")
-    .withIndex("by_league_and_week", (q) =>
-      q.eq("leagueTier", leagueTier).eq("weekNumber", weekNumber)
-    )
-    .unique()
-}
-
-async function getPlayerByDiscordId(
-  ctx: MutationCtx | QueryCtx,
-  discordId: string
-) {
-  return await lookupPlayerByDiscordId(ctx, discordId)
-}
+import { getPlayerByUuid } from "./lib/readModels"
 
 // This query assumes that a player only plays in one competition per week. If not, it will throw an error.
 export const listPlayerMatches = internalQuery({
   args: {
-    discordId: v.string(),
+    uuid: v.string(),
     weekNumber: v.number(),
   },
   handler: async (
@@ -49,7 +29,7 @@ export const listPlayerMatches = internalQuery({
       dnf: boolean
     }[]
   }> => {
-    const player = await getPlayerByDiscordId(ctx, args.discordId)
+    const player = await getPlayerByUuid(ctx, args.uuid)
     if (!player) {
       throw new Error("Player not found")
     }

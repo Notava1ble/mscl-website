@@ -26,20 +26,19 @@ export const CompetitionStatusSchema = z.object({
 export const RegisterPlayerSchema = z.object({
   leagueTier: positiveInt("leagueTier"),
   weekNumber: positiveInt("weekNumber"),
-  discordId: nonEmptyString("discordId"),
-  uuid: z.string("uuid must be a string.").min(1),
-  ign: z.string("ign must be a string.").min(1),
+  uuid: nonEmptyString("uuid"),
+  ign: nonEmptyString("ign"),
   elo: z.number("elo must be a number.").optional(),
 })
 
 export const UnregisterPlayerSchema = z.object({
   leagueTier: positiveInt("leagueTier"),
   weekNumber: positiveInt("weekNumber"),
-  discordId: nonEmptyString("discordId"),
+  uuid: nonEmptyString("uuid"),
 })
 
 export const UpdatePlayerLeagueSchema = z.object({
-  discordId: nonEmptyString("discordId"),
+  uuid: nonEmptyString("uuid"),
   leagueTier: positiveInt("leagueTier"),
 })
 
@@ -52,7 +51,7 @@ export const CreateEmptyMatchSchema = z.object({
 export const ClearMatchResultsSchema = CreateEmptyMatchSchema
 
 export const MatchResultImportSchema = z.object({
-  discordId: nonEmptyString("results[].discordId"),
+  uuid: nonEmptyString("results[].uuid"),
   timeMs: z.union([z.number("results[].timeMs must be a number."), z.null()]),
   dnf: z.boolean("results[].dnf must be a boolean."),
   placement: z.union([
@@ -72,19 +71,10 @@ export const ImportMatchSchema = z.object({
   results: z.array(MatchResultImportSchema, "results must be an array."),
 })
 
-export const UpdateSingleResultSchema = z.object({
-  leagueTier: positiveInt("leagueTier"),
-  weekNumber: positiveInt("weekNumber"),
-  matchNumber: positiveInt("matchNumber"),
-  discordId: nonEmptyString("discordId"),
-  timeMs: z.union([z.number("timeMs must be a number."), z.null()]),
-  dnf: z.boolean("dnf must be a boolean."),
-})
-
 export const PointAdjustmentSchema = z.object({
   leagueTier: positiveInt("leagueTier"),
   weekNumber: positiveInt("weekNumber"),
-  discordId: nonEmptyString("discordId"),
+  uuid: nonEmptyString("uuid"),
   manualAdjustmentPoints: z.number("manualAdjustmentPoints must be a number."),
 })
 
@@ -92,25 +82,25 @@ export const MovementSchema = z
   .object({
     leagueTier: positiveInt("leagueTier"),
     weekNumber: positiveInt("weekNumber"),
-    promotedDiscordIds: z.array(
-      z.string("promotedDiscordIds entries must be strings.").min(1),
-      "promotedDiscordIds must be an array."
+    promotedUuids: z.array(
+      z.string("promotedUuids entries must be strings.").min(1),
+      "promotedUuids must be an array."
     ),
-    demotedDiscordIds: z.array(
-      z.string("demotedDiscordIds entries must be strings.").min(1),
-      "demotedDiscordIds must be an array."
+    demotedUuids: z.array(
+      z.string("demotedUuids entries must be strings.").min(1),
+      "demotedUuids must be an array."
     ),
   })
   .superRefine((value, ctx) => {
-    const demotedLookup = new Set(value.demotedDiscordIds)
-    const overlap = value.promotedDiscordIds.filter((discordId) =>
-      demotedLookup.has(discordId)
+    const demotedLookup = new Set(value.demotedUuids)
+    const overlap = value.promotedUuids.filter((uuid) =>
+      demotedLookup.has(uuid)
     )
     if (overlap.length > 0) {
       ctx.addIssue({
         code: "custom",
-        message: "A discordId cannot be both promoted and demoted.",
-        path: ["promotedDiscordIds"],
+        message: "A uuid cannot be both promoted and demoted.",
+        path: ["promotedUuids"],
       })
     }
   })

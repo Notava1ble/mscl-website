@@ -30,7 +30,6 @@ export const transitionWeek = internalMutation({
     newWeek: v.number(),
     players: v.array(
       v.object({
-        discordId: v.string(),
         uuid: v.string(),
         ign: v.string(),
         elo: v.optional(v.number()),

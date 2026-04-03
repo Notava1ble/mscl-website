@@ -40,7 +40,7 @@ The website is **not** the source of truth for competition logic.
 
 Authoritative definitions are in `convex/schema.ts`. The database is heavily denormalized to ensure fast frontend queries.
 
-- `players` – Global player profiles (`discordId`, `ign`, `lowercaseIgn`, `elo`, `currentLeagueNumber`).
+- `players` – Global player profiles (`uuid`, `ign`, `lowercaseIgn`, `elo`, `currentLeagueNumber`).
 - `competitions` – Represents a specific week in a specific league. Includes `leagueTier`, `weekNumber`, and `status` (`"active"` | `"ended"`).
 - `registrations` – The central junction linking a player to a competition. Stores `manualAdjustmentPoints`, `totalPoints`, and week-end `movementStatus` (`promoted`, `demoted`, `none`).
 - `matches` – Individual seeds/matches within a competition.
@@ -80,6 +80,7 @@ All writes are done via Convex HTTP actions in `convex/http.ts`.
 - **Endpoint:** `POST /api/write/player` & `DELETE /api/write/player`
 - **Bot Commands:** `/reg`, `/admin_reg` (POST) | `/unreg`, `/remove` (DELETE).
 - **Behavior:** Upserts the player profile and creates/removes the `registrations` link for that competition.
+  - Player identity is keyed by Minecraft UUID, not Discord ID.
   - **Constraint:** Unregistering a player is blocked if they have existing match results for the competition.
 
 **4. Match/Seed Management**
@@ -104,7 +105,7 @@ All writes are done via Convex HTTP actions in `convex/http.ts`.
 
 - **Endpoint:** `PATCH /api/write/movements`
 - **Bot Command:** `/relegate`
-- **Behavior:** Receives lists of promoted/demoted Discord IDs. Updates their `registrations.movementStatus` and shifts their global `currentLeagueNumber`.
+- **Behavior:** Receives lists of promoted/demoted player UUIDs. Updates their `registrations.movementStatus` and shifts their global `currentLeagueNumber`.
 
 ---
 

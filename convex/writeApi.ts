@@ -8,7 +8,7 @@ import {
   buildRegistrationSnapshot,
   ensureLeague,
   ensureWeekHasActiveCompetition,
-  getPlayerByDiscordId,
+  getPlayerByUuid,
   syncPlayerRegistrationSnapshots,
   syncPlayerWinnerSnapshots,
 } from "./lib/readModels"
@@ -301,7 +301,6 @@ export const registerPlayer = internalMutation({
   args: {
     leagueTier: v.number(),
     weekNumber: v.number(),
-    discordId: v.string(),
     uuid: v.string(),
     ign: v.string(),
     elo: v.optional(v.number()),
@@ -331,7 +330,7 @@ export const registerPlayer = internalMutation({
     }
 
     const normalizedLowercaseIgn = args.ign.toLowerCase()
-    let player = await getPlayerByDiscordId(ctx, args.discordId)
+    let player = await getPlayerByUuid(ctx, args.uuid)
 
     if (player) {
       await ctx.db.patch(
@@ -347,7 +346,6 @@ export const registerPlayer = internalMutation({
       player = await ctx.db.get(player._id)
     } else {
       const playerId = await ctx.db.insert("players", {
-        discordId: args.discordId,
         currentLeagueNumber: args.leagueTier,
         uuid: args.uuid,
         ign: args.ign,
@@ -403,7 +401,7 @@ export const unregisterPlayer = internalMutation({
   args: {
     leagueTier: v.number(),
     weekNumber: v.number(),
-    discordId: v.string(),
+    uuid: v.string(),
   },
   handler: async (
     ctx,
@@ -427,7 +425,7 @@ export const unregisterPlayer = internalMutation({
       return competitionLock
     }
 
-    const player = await getPlayerByDiscordId(ctx, args.discordId)
+    const player = await getPlayerByUuid(ctx, args.uuid)
     if (!player) {
       return fail(404, "Player not found.")
     }
@@ -595,7 +593,7 @@ export const importMatchData = internalMutation({
     rankedMatchId: v.string(),
     results: v.array(
       v.object({
-        discordId: v.string(),
+        uuid: v.string(),
         timeMs: v.union(v.number(), v.null()),
         dnf: v.boolean(),
         placement: v.union(v.number(), v.null()),
@@ -626,17 +624,14 @@ export const importMatchData = internalMutation({
       return competitionLock
     }
 
-    const seenDiscordIds = new Set<string>()
-    const duplicateDiscordId = args.results.find((result) => {
-      if (seenDiscordIds.has(result.discordId)) return true
-      seenDiscordIds.add(result.discordId)
+    const seenUuids = new Set<string>()
+    const duplicateUuid = args.results.find((result) => {
+      if (seenUuids.has(result.uuid)) return true
+      seenUuids.add(result.uuid)
       return false
     })
-    if (duplicateDiscordId) {
-      return fail(
-        400,
-        `Duplicate result for discordId ${duplicateDiscordId.discordId}.`
-      )
+    if (duplicateUuid) {
+      return fail(400, `Duplicate result for uuid ${duplicateUuid.uuid}.`)
     }
 
     let match = await getMatch(ctx, competition._id, args.matchNumber)
@@ -679,9 +674,9 @@ export const importMatchData = internalMutation({
     }> = []
 
     for (const result of args.results) {
-      const player = await getPlayerByDiscordId(ctx, result.discordId)
+      const player = await getPlayerByUuid(ctx, result.uuid)
       if (!player) {
-        return fail(404, `Player not found for discordId ${result.discordId}.`)
+        return fail(404, `Player not found for uuid ${result.uuid}.`)
       }
 
       const registration = await getRegistration(
@@ -690,10 +685,7 @@ export const importMatchData = internalMutation({
         player._id
       )
       if (!registration) {
-        return fail(
-          404,
-          `Registration not found for discordId ${result.discordId}.`
-        )
+        return fail(404, `Registration not found for uuid ${result.uuid}.`)
       }
 
       playersForWinner.push({
@@ -774,74 +766,11 @@ export const importMatchData = internalMutation({
   },
 })
 
-export const updateSingleResult = internalMutation({
-  args: {
-    leagueTier: v.number(),
-    weekNumber: v.number(),
-    matchNumber: v.number(),
-    discordId: v.string(),
-    timeMs: v.union(v.number(), v.null()),
-    dnf: v.boolean(),
-  },
-  handler: async (
-    ctx,
-    args
-  ): Promise<ApiResult<{ matchResultId: Id<"matchResults"> }>> => {
-    const competition = await getCompetition(
-      ctx,
-      args.leagueTier,
-      args.weekNumber
-    )
-    if (!competition) {
-      return fail(404, "Competition not found.")
-    }
-    const competitionLock = ensureCompetitionWritable(competition)
-    if (competitionLock) {
-      return competitionLock
-    }
-
-    const match = await getMatch(ctx, competition._id, args.matchNumber)
-    if (!match) {
-      return fail(404, "Match not found.")
-    }
-
-    const player = await getPlayerByDiscordId(ctx, args.discordId)
-    if (!player) {
-      return fail(404, "Player not found.")
-    }
-
-    const matchResult = await ctx.db
-      .query("matchResults")
-      .withIndex("by_match_and_player", (q) =>
-        q.eq("matchId", match._id).eq("playerId", player._id)
-      )
-      .unique()
-
-    if (!matchResult) {
-      return fail(404, "Match result not found.")
-    }
-
-    if (matchResult.placement !== null || matchResult.pointsWon !== 0) {
-      return fail(
-        409,
-        "Single-result edits are not supported after placements or points are seeded. Recompute the full match and re-import all results."
-      )
-    }
-
-    await ctx.db.patch(matchResult._id, {
-      timeMs: args.timeMs,
-      dnf: args.dnf,
-    })
-
-    return { ok: true, matchResultId: matchResult._id }
-  },
-})
-
 export const setPointAdjustment = internalMutation({
   args: {
     leagueTier: v.number(),
     weekNumber: v.number(),
-    discordId: v.string(),
+    uuid: v.string(),
     manualAdjustmentPoints: v.number(),
   },
   handler: async (
@@ -866,7 +795,7 @@ export const setPointAdjustment = internalMutation({
       return competitionLock
     }
 
-    const player = await getPlayerByDiscordId(ctx, args.discordId)
+    const player = await getPlayerByUuid(ctx, args.uuid)
     if (!player) {
       return fail(404, "Player not found.")
     }
@@ -899,8 +828,8 @@ export const processMovements = internalMutation({
   args: {
     leagueTier: v.number(),
     weekNumber: v.number(),
-    promotedDiscordIds: v.array(v.string()),
-    demotedDiscordIds: v.array(v.string()),
+    promotedUuids: v.array(v.string()),
+    demotedUuids: v.array(v.string()),
   },
   handler: async (
     ctx,
@@ -926,25 +855,20 @@ export const processMovements = internalMutation({
       return competitionLock
     }
 
-    const demotedLookup = new Set(args.demotedDiscordIds)
-    const overlap = args.promotedDiscordIds.filter((discordId) =>
-      demotedLookup.has(discordId)
-    )
+    const demotedLookup = new Set(args.demotedUuids)
+    const overlap = args.promotedUuids.filter((uuid) => demotedLookup.has(uuid))
     if (overlap.length > 0) {
-      return fail(
-        400,
-        `discordId ${overlap[0]} cannot be promoted and demoted.`
-      )
+      return fail(400, `uuid ${overlap[0]} cannot be promoted and demoted.`)
     }
 
-    const promotedSet = new Set(args.promotedDiscordIds)
-    const demotedSet = new Set(args.demotedDiscordIds)
+    const promotedSet = new Set(args.promotedUuids)
+    const demotedSet = new Set(args.demotedUuids)
     const touchedPlayerIds = new Set<Id<"players">>()
 
-    for (const discordId of Array.from(promotedSet)) {
-      const player = await getPlayerByDiscordId(ctx, discordId)
+    for (const uuid of Array.from(promotedSet)) {
+      const player = await getPlayerByUuid(ctx, uuid)
       if (!player) {
-        return fail(404, `Player not found for discordId ${discordId}.`)
+        return fail(404, `Player not found for uuid ${uuid}.`)
       }
 
       const registration = await getRegistration(
@@ -953,7 +877,7 @@ export const processMovements = internalMutation({
         player._id
       )
       if (!registration) {
-        return fail(404, `Registration not found for discordId ${discordId}.`)
+        return fail(404, `Registration not found for uuid ${uuid}.`)
       }
 
       await ensureLeague(ctx, Math.max(1, args.leagueTier - 1))
@@ -964,10 +888,10 @@ export const processMovements = internalMutation({
       touchedPlayerIds.add(player._id)
     }
 
-    for (const discordId of Array.from(demotedSet)) {
-      const player = await getPlayerByDiscordId(ctx, discordId)
+    for (const uuid of Array.from(demotedSet)) {
+      const player = await getPlayerByUuid(ctx, uuid)
       if (!player) {
-        return fail(404, `Player not found for discordId ${discordId}.`)
+        return fail(404, `Player not found for uuid ${uuid}.`)
       }
 
       const registration = await getRegistration(
@@ -976,7 +900,7 @@ export const processMovements = internalMutation({
         player._id
       )
       if (!registration) {
-        return fail(404, `Registration not found for discordId ${discordId}.`)
+        return fail(404, `Registration not found for uuid ${uuid}.`)
       }
 
       await ensureLeague(ctx, args.leagueTier + 1)
@@ -1013,7 +937,7 @@ export const processMovements = internalMutation({
 
 export const updatePlayerLeague = internalMutation({
   args: {
-    discordId: v.string(),
+    uuid: v.string(),
     leagueTier: v.number(),
   },
   handler: async (
@@ -1028,7 +952,7 @@ export const updatePlayerLeague = internalMutation({
   > => {
     await ensureLeague(ctx, args.leagueTier)
 
-    const player = await getPlayerByDiscordId(ctx, args.discordId)
+    const player = await getPlayerByUuid(ctx, args.uuid)
     if (!player) {
       return fail(404, "Player not found.")
     }

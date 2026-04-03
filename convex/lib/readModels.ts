@@ -22,13 +22,13 @@ export function getLeagueName(leagueTier: number) {
   return `League ${leagueTier}`
 }
 
-export async function getPlayerByDiscordId(
+export async function getPlayerByUuid(
   ctx: DbCtx,
-  discordId: string
+  uuid: string
 ): Promise<Doc<"players"> | null> {
   return await ctx.db
     .query("players")
-    .withIndex("by_discord_id", (q) => q.eq("discordId", discordId))
+    .withIndex("by_uuid", (q) => q.eq("uuid", uuid))
     .unique()
 }
 

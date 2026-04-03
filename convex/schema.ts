@@ -4,14 +4,13 @@ import { v } from "convex/values"
 
 export default defineSchema({
   players: defineTable({
-    discordId: v.string(),
     uuid: v.string(),
     ign: v.string(),
     lowercaseIgn: v.string(), // For easy searching
     elo: v.optional(v.number()),
     currentLeagueNumber: v.number(),
   })
-    .index("by_discord_id", ["discordId"])
+    .index("by_uuid", ["uuid"])
     .index("by_league", ["currentLeagueNumber"])
     .index("by_ign", ["ign"])
     .index("by_lowercase_ign", ["lowercaseIgn"]),
