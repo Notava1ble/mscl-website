@@ -12,7 +12,7 @@ export const CompetitionSchema = z.object({
   maxTimeLimitMs: z
     .number("maxTimeLimitMs must be a number.")
     .nonnegative("maxTimeLimitMs must be at least 0."),
-  startingTime: z.number("startingTime must be a number."),
+  startingTime: z.optional(z.number("startingTime must be a number.")),
 })
 
 export const CompetitionStatusSchema = z.object({

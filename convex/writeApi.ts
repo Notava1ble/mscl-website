@@ -203,7 +203,7 @@ export const createOrRestartCompetition = internalMutation({
     leagueTier: v.number(),
     weekNumber: v.number(),
     maxTimeLimitMs: v.number(),
-    startingTime: v.number(),
+    startingTime: v.optional(v.number()),
   },
   handler: async (
     ctx,
@@ -824,6 +824,7 @@ export const setPointAdjustment = internalMutation({
 // This endpoint is used only once per competition. If a mistake is made,
 // the admin should use the api path: "/api/write/player/league",
 // to update the league outside of the competition.
+// We also allow calling this after the competition has ended.
 export const processMovements = internalMutation({
   args: {
     leagueTier: v.number(),
@@ -849,10 +850,6 @@ export const processMovements = internalMutation({
     )
     if (!competition) {
       return fail(404, "Competition not found.")
-    }
-    const competitionLock = ensureCompetitionWritable(competition)
-    if (competitionLock) {
-      return competitionLock
     }
 
     const demotedLookup = new Set(args.demotedUuids)
