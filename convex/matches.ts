@@ -1,9 +1,5 @@
 import { v } from "convex/values"
-import {
-  internalQuery,
-  type MutationCtx,
-  type QueryCtx,
-} from "./_generated/server"
+import { internalQuery } from "./_generated/server"
 import { getPlayerByUuid } from "./lib/readModels"
 
 // This query assumes that a player only plays in one competition per week. If not, it will throw an error.

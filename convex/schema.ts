@@ -23,7 +23,9 @@ export default defineSchema({
   weeks: defineTable({
     weekNumber: v.number(),
     activeCompetitionCount: v.number(),
-  }).index("by_week_number", ["weekNumber"]),
+  })
+    .index("by_week_number", ["weekNumber"])
+    .index("by_active_comp_count", ["activeCompetitionCount"]),
 
   competitions: defineTable({
     leagueTier: v.number(),

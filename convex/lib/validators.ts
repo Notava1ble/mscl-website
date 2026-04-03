@@ -60,7 +60,9 @@ export const MatchResultImportSchema = z.object({
       .min(1, "results[].placement must be at least 1."),
     z.null(),
   ]),
-  pointsWon: z.number("results[].pointsWon must be a number."),
+  pointsWon: z
+    .number("results[].pointsWon must be a number.")
+    .nonnegative("results[].pointsWon must be at least 0."),
 })
 
 export const ImportMatchSchema = z.object({

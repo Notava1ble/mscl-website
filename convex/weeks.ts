@@ -4,8 +4,12 @@ import { v } from "convex/values"
 export const getCurrentWeek = query({
   args: {},
   handler: async (ctx) => {
-    const weeks = await ctx.db.query("weeks").collect()
-    const activeWeeks = weeks.filter((week) => week.activeCompetitionCount > 0)
+    const activeWeeks = await ctx.db
+      .query("weeks")
+      .withIndex("by_active_comp_count", (q) =>
+        q.gt("activeCompetitionCount", 0)
+      )
+      .collect()
 
     if (activeWeeks.length === 0) return null
 
