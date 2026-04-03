@@ -11,8 +11,13 @@ export const CompetitionSchema = z.object({
   weekNumber: positiveInt("weekNumber"),
   maxTimeLimitMs: z
     .number("maxTimeLimitMs must be a number.")
-    .nonnegative("maxTimeLimitMs must be at least 0."),
-  startingTime: z.optional(z.number("startingTime must be a number.")),
+    .nonnegative("maxTimeLimitMs must be at least 0.")
+    .int("maxTimeLimitMs must be an integer."),
+  startingTime: z.optional(
+    z
+      .number("startingTime must be a number.")
+      .int("startingTime must be an integer.")
+  ),
 })
 
 export const CompetitionStatusSchema = z.object({
@@ -52,7 +57,12 @@ export const ClearMatchResultsSchema = CreateEmptyMatchSchema
 
 export const MatchResultImportSchema = z.object({
   uuid: nonEmptyString("results[].uuid"),
-  timeMs: z.union([z.number("results[].timeMs must be a number."), z.null()]),
+  timeMs: z.union([
+    z
+      .number("results[].timeMs must be a number.")
+      .int("results[].timeMs must be an integer."),
+    z.null(),
+  ]),
   dnf: z.boolean("results[].dnf must be a boolean."),
   placement: z.union([
     z
