@@ -51,10 +51,10 @@ export async function validateWebsiteApiKey(
   request: Request
 ): Promise<Response | null> {
   const providedKey = request.headers.get("x-api-key")
-  const expectedKey = process.env.WEBSITE_API_KEY
+  const expectedKey = process.env.WRITER_API_KEY
 
   if (!expectedKey) {
-    console.error("[Config] WEBSITE_API_KEY environment variable is not set")
+    console.error("[Config] WRITER_API_KEY environment variable is not set")
     return jsonError("Server misconfiguration.", 500)
   }
 
