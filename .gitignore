@@ -26,3 +26,7 @@ pnpm-debug.log*
 scripts/data/
 db_snapshots/
 bot/
+nonPublicScripts/
+
+*.report.md
+
