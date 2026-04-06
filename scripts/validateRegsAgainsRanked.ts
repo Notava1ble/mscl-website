@@ -3,7 +3,7 @@ import fs from "fs"
 
 type RegType = (typeof REGS)[number]
 
-type UserProfile = {
+export type UserProfile = {
   uuid: string
   nickname: string
   roleType: string
