@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as development from "../development.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as leagues from "../leagues.js";
@@ -28,6 +29,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  development: typeof development;
   http: typeof http;
   leaderboard: typeof leaderboard;
   leagues: typeof leagues;
