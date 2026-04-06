@@ -9,7 +9,7 @@ The event is organized into 6 leagues based on skill levels. Players are seeded 
 | ------ | ------- | ----------- |
 | 1      | 8       | 13 minutes  |
 | 2      | 8       | 15 minutes  |
-| 3      | 7       | 17 minutes  |
+| 3      | 8       | 17 minutes  |
 | 4      | 7       | 20 minutes  |
 | 5      | 6       | 25 minutes  |
 | 6      | 5       | 30 minutes  |
