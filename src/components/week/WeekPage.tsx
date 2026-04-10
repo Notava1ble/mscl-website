@@ -1,13 +1,11 @@
-import { useState, useEffect } from "react"
+import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
-import type { Id } from "../../../convex/_generated/dataModel"
 import ConvexClientProvider from "@/components/ConvexClientProvider"
 import { WeekSelector } from "./WeekSelector"
 import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
 import { MatchesList } from "./MatchesList"
-import { DetailsPanel } from "./DetailsPanel"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -17,89 +15,111 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 
+const LazyDetailsPanel = lazy(async () => {
+  const module = await import("./DetailsPanel")
+  return { default: module.DetailsPanel }
+})
+
+function DetailsPanelFallback({ showBorder = true }: { showBorder?: boolean }) {
+  return (
+    <div
+      className={[
+        "min-h-75 p-6 text-sm text-muted-foreground",
+        showBorder ? "rounded-3xl border border-border" : "",
+      ].join(" ")}
+    >
+      Loading details...
+    </div>
+  )
+}
+
 function WeekContent() {
   const isMobile = useIsMobile()
   const weeks = useQuery(api.weekView.getAllWeeks)
   const leagues = useQuery(api.leagues.listLeagues)
 
-  const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null)
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
-
+  const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(
+    null
+  )
+  const [selectedLeagueTier, setSelectedLeagueTier] = useState<number | null>(
+    null
+  )
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isUrlInitialized, setIsUrlInitialized] = useState(false)
+  const weekNumbers = useMemo(
+    () => new Set((weeks ?? []).map((week) => week.weekNumber)),
+    [weeks]
+  )
+  const leagueTiers = useMemo(
+    () => new Set((leagues ?? []).map((league) => league.leagueTier)),
+    [leagues]
+  )
 
-  // Initialize selected week and league from URL once data is loaded
   useEffect(() => {
-    if (typeof window === "undefined" || !weeks || !leagues || isUrlInitialized) return
+    if (
+      typeof window === "undefined" ||
+      !weeks ||
+      !leagues ||
+      isUrlInitialized
+    ) {
+      return
+    }
 
     const searchParams = new URL(window.location.href).searchParams
     const urlWeek = searchParams.get("week")
     const urlLeague = searchParams.get("league")
 
-    let initialWeekId = null
-    if (urlWeek) {
-      const parsedWeek = parseInt(urlWeek, 10)
-      if (!isNaN(parsedWeek)) {
-        const week = weeks.find((w) => w.weekNumber === parsedWeek)
-        if (week) initialWeekId = week._id
+    const parsedWeek =
+      urlWeek && urlWeek !== "latest" ? Number.parseInt(urlWeek, 10) : Number.NaN
+    const parsedLeague = urlLeague ? Number.parseInt(urlLeague, 10) : Number.NaN
+
+    if (Number.isFinite(parsedWeek)) {
+      if (weekNumbers.has(parsedWeek)) {
+        setSelectedWeekNumber(parsedWeek)
       }
     }
 
-    let initialLeagueId = null
-    if (urlLeague) {
-      const parsedLeague = parseInt(urlLeague, 10)
-      if (!isNaN(parsedLeague)) {
-        const league = leagues.find((l) => l.tierLevel === parsedLeague)
-        if (league) initialLeagueId = league._id
+    if (Number.isFinite(parsedLeague)) {
+      if (leagueTiers.has(parsedLeague)) {
+        setSelectedLeagueTier(parsedLeague)
       }
     }
 
-    // Set state FIRST
-    if (initialWeekId) setSelectedWeekId(initialWeekId)
-    if (initialLeagueId) setSelectedLeagueId(initialLeagueId)
-    
-    // Then mark initialized
     setIsUrlInitialized(true)
-  }, [weeks, leagues, isUrlInitialized])
+  }, [weeks, leagues, isUrlInitialized, weekNumbers, leagueTiers])
 
-  // Handle browser back and forward buttons
   useEffect(() => {
     if (typeof window === "undefined") return
 
     const handlePopState = () => {
       if (!weeks || !leagues) return
+
       const searchParams = new URL(window.location.href).searchParams
       const urlWeek = searchParams.get("week")
       const urlLeague = searchParams.get("league")
 
-      let newWeekId = null
-      if (urlWeek) {
-        const parsedWeek = parseInt(urlWeek, 10)
-        if (!isNaN(parsedWeek)) {
-          const week = weeks.find((w) => w.weekNumber === parsedWeek)
-          if (week) newWeekId = week._id
-        }
-      }
+      const parsedWeek =
+        urlWeek && urlWeek !== "latest"
+          ? Number.parseInt(urlWeek, 10)
+          : Number.NaN
+      const parsedLeague = urlLeague ? Number.parseInt(urlLeague, 10) : Number.NaN
 
-      let newLeagueId = null
-      if (urlLeague) {
-        const parsedLeague = parseInt(urlLeague, 10)
-        if (!isNaN(parsedLeague)) {
-          const league = leagues.find((l) => l.tierLevel === parsedLeague)
-          if (league) newLeagueId = league._id
-        }
-      }
+      setSelectedWeekNumber(
+        Number.isFinite(parsedWeek) && weekNumbers.has(parsedWeek) ? parsedWeek : null
+      )
 
-      // If they are missing in URL, we want to clear selected so they fall back to defaults
-      setSelectedWeekId(newWeekId)
-      setSelectedLeagueId(newLeagueId)
+      setSelectedLeagueTier(
+        Number.isFinite(parsedLeague) && leagueTiers.has(parsedLeague)
+          ? parsedLeague
+          : null
+      )
     }
 
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [weeks, leagues])
+  }, [weeks, leagues, weekNumbers, leagueTiers])
 
   const onDrawerChange = (open: boolean) => {
     setIsDrawerOpen(open)
@@ -109,40 +129,44 @@ function WeekContent() {
     }
   }
 
-  const effectiveSelectedWeekId =
-    (selectedWeekId && weeks?.some((w) => w._id === selectedWeekId)
-      ? selectedWeekId
-      : null) ??
-    weeks?.find((w) => w.isCurrent)?._id ??
-    weeks?.[0]?._id ??
-    null
+  const effectiveSelectedWeekNumber = useMemo(
+    () =>
+      (selectedWeekNumber !== null && weekNumbers.has(selectedWeekNumber)
+        ? selectedWeekNumber
+        : null) ??
+      weeks?.find((week) => week.isActive)?.weekNumber ??
+      weeks?.[0]?.weekNumber ??
+      null,
+    [selectedWeekNumber, weekNumbers, weeks]
+  )
 
-  const effectiveSelectedLeagueId =
-    (selectedLeagueId && leagues?.some((l) => l._id === selectedLeagueId)
-      ? selectedLeagueId
-      : null) ??
-    leagues?.find((l) => l.tierLevel === 1)?._id ??
-    leagues?.[0]?._id ??
-    null
-
-
+  const effectiveSelectedLeagueTier = useMemo(
+    () =>
+      (selectedLeagueTier !== null && leagueTiers.has(selectedLeagueTier)
+        ? selectedLeagueTier
+        : null) ??
+      leagues?.find((league) => league.leagueTier === 1)?.leagueTier ??
+      leagues?.[0]?.leagueTier ??
+      null,
+    [selectedLeagueTier, leagueTiers, leagues]
+  )
 
   const standings = useQuery(
     api.weekView.getWeekStandings,
-    effectiveSelectedWeekId && effectiveSelectedLeagueId
+    effectiveSelectedWeekNumber !== null && effectiveSelectedLeagueTier !== null
       ? {
-          weekId: effectiveSelectedWeekId as Id<"weeks">,
-          leagueId: effectiveSelectedLeagueId as Id<"leagues">,
+          weekNumber: effectiveSelectedWeekNumber,
+          leagueTier: effectiveSelectedLeagueTier,
         }
       : "skip"
   )
 
   const matches = useQuery(
     api.weekView.getWeekMatches,
-    effectiveSelectedWeekId && effectiveSelectedLeagueId
+    effectiveSelectedWeekNumber !== null && effectiveSelectedLeagueTier !== null
       ? {
-          weekId: effectiveSelectedWeekId as Id<"weeks">,
-          leagueId: effectiveSelectedLeagueId as Id<"leagues">,
+          weekNumber: effectiveSelectedWeekNumber,
+          leagueTier: effectiveSelectedLeagueTier,
         }
       : "skip"
   )
@@ -169,69 +193,88 @@ function WeekContent() {
     }
   }
 
-  function onWeekChange(id: string) {
-    setSelectedWeekId(id)
+  function pushSelectionToUrl(weekNumber: number, leagueTier: number) {
+    const newUrl = new URL(window.location.href)
+    newUrl.searchParams.set("week", String(weekNumber))
+    newUrl.searchParams.set("league", String(leagueTier))
+    window.history.pushState({}, "", newUrl.toString())
+  }
+
+  function onWeekChange(weekNumber: number) {
+    setSelectedWeekNumber(weekNumber)
     setSelectedPlayerId(null)
     setSelectedMatchId(null)
     setIsDrawerOpen(false)
 
-    // Update URL with pushState for manual changes
-    const week = weeks?.find((w) => w._id === id)
-    const league = leagues?.find((l) => l._id === effectiveSelectedLeagueId)
-    if (week && league) {
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.set("week", week.weekNumber.toString())
-      newUrl.searchParams.set("league", league.tierLevel.toString())
-      window.history.pushState({}, "", newUrl.toString())
+    if (effectiveSelectedLeagueTier !== null) {
+      pushSelectionToUrl(weekNumber, effectiveSelectedLeagueTier)
     }
   }
 
-  function onLeagueChange(id: string) {
-    setSelectedLeagueId(id)
+  function onLeagueChange(leagueTier: number) {
+    setSelectedLeagueTier(leagueTier)
     setSelectedPlayerId(null)
     setSelectedMatchId(null)
     setIsDrawerOpen(false)
 
-    // Update URL with pushState for manual changes
-    const week = weeks?.find((w) => w._id === effectiveSelectedWeekId)
-    const league = leagues?.find((l) => l._id === id)
-    if (week && league) {
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.set("week", week.weekNumber.toString())
-      newUrl.searchParams.set("league", league.tierLevel.toString())
-      window.history.pushState({}, "", newUrl.toString())
+    if (effectiveSelectedWeekNumber !== null) {
+      pushSelectionToUrl(effectiveSelectedWeekNumber, leagueTier)
     }
   }
 
-  const selectedPlayer = standings?.find((s) => s.playerId === selectedPlayerId)
+  const standingsByPlayerId = useMemo(
+    () =>
+      new Map(
+        (standings ?? []).map((standing) => [String(standing.playerId), standing])
+      ),
+    [standings]
+  )
+  const matchesById = useMemo(
+    () => new Map((matches ?? []).map((match) => [String(match._id), match])),
+    [matches]
+  )
+  const selectedPlayer =
+    selectedPlayerId !== null ? standingsByPlayerId.get(selectedPlayerId) : null
+  const selectedMatch =
+    selectedMatchId !== null ? matchesById.get(selectedMatchId) : null
 
-  const selectedMatch = matches?.find((m) => m._id === selectedMatchId)
-
-  const detailsPanelProps = {
-    weekId: effectiveSelectedWeekId,
-    playerId: selectedPlayerId,
-    matchId: selectedMatchId,
-    rankedMatchId: selectedMatch?.rankedMatchId ?? null,
-    playerStats: selectedPlayer
-      ? {
-          name: selectedPlayer.name,
-          totalPoints: selectedPlayer.totalPoints,
-          rank: selectedPlayer.rank,
-        }
-      : null,
-  }
+  const detailsPanelProps = useMemo(
+    () => ({
+      weekNumber: effectiveSelectedWeekNumber,
+      leagueTier: effectiveSelectedLeagueTier,
+      playerId: selectedPlayerId,
+      matchId: selectedMatchId,
+      rankedMatchId: selectedMatch?.rankedMatchId ?? null,
+      playerStats: selectedPlayer
+        ? {
+            name: selectedPlayer.name,
+            totalPoints: selectedPlayer.totalPoints,
+            rank: selectedPlayer.rank,
+          }
+        : null,
+    }),
+    [
+      effectiveSelectedLeagueTier,
+      effectiveSelectedWeekNumber,
+      selectedMatch,
+      selectedMatchId,
+      selectedPlayer,
+      selectedPlayerId,
+    ]
+  )
+  const hasDetailsSelection =
+    detailsPanelProps.playerId !== null || detailsPanelProps.matchId !== null
 
   return (
     <div className="min-h-screen bg-background pt-20 pb-24 font-sans text-foreground md:pt-28">
       <div className="container mx-auto max-w-7xl px-4 md:px-8">
-        {/* Header section */}
         <div className="mb-4 flex flex-col justify-between gap-4 border-b border-border/40 pb-4 md:flex-row md:items-center">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
             Weekly Leaderboards
           </h1>
           <WeekSelector
             weeks={weeks}
-            selectedWeekId={effectiveSelectedWeekId}
+            selectedWeekNumber={effectiveSelectedWeekNumber}
             onSelect={onWeekChange}
           />
         </div>
@@ -239,7 +282,7 @@ function WeekContent() {
         <div className="mb-8">
           <LeagueSelector
             leagues={leagues}
-            selectedLeagueId={effectiveSelectedLeagueId}
+            selectedLeagueTier={effectiveSelectedLeagueTier}
             onSelect={onLeagueChange}
             isMobile={isMobile}
           />
@@ -286,7 +329,11 @@ function WeekContent() {
                   </DrawerTitle>
                 </DrawerHeader>
                 <div className="h-full overflow-y-auto px-6 py-4 pb-12">
-                  <DetailsPanel {...detailsPanelProps} showBorder={false} />
+                  {hasDetailsSelection ? (
+                    <Suspense fallback={<DetailsPanelFallback showBorder={false} />}>
+                      <LazyDetailsPanel {...detailsPanelProps} showBorder={false} />
+                    </Suspense>
+                  ) : null}
                 </div>
               </DrawerContent>
             </Drawer>
@@ -312,7 +359,11 @@ function WeekContent() {
             </div>
 
             <div className="sticky top-24 w-125 shrink-0">
-              <DetailsPanel {...detailsPanelProps} />
+              {hasDetailsSelection ? (
+                <Suspense fallback={<DetailsPanelFallback />}>
+                  <LazyDetailsPanel {...detailsPanelProps} />
+                </Suspense>
+              ) : null}
             </div>
           </div>
         )}

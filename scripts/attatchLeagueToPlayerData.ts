@@ -1,7 +1,7 @@
 import fs from "fs"
 
 import data from "./data/validatedRegs"
-import oldData from "./data/week4regs_old"
+import oldData from "./data/week4regs"
 
 const rows = []
 let count = 0

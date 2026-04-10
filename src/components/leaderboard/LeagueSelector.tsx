@@ -1,25 +1,23 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Id } from "../../../convex/_generated/dataModel"
 
 interface League {
-  _id: Id<"leagues">
+  leagueTier: number
   name: string
-  tierLevel: number
 }
 
 interface LeagueSelectorProps {
   leagues: League[] | undefined
-  selectedLeagueId: string | null
-  onSelect: (leagueId: string) => void
+  selectedLeagueTier: number | null
+  onSelect: (leagueTier: number) => void
 }
 
 export function LeagueSelector({
   leagues,
-  selectedLeagueId,
+  selectedLeagueTier,
   onSelect,
 }: LeagueSelectorProps) {
-  if (!leagues || !selectedLeagueId) {
+  if (!leagues || selectedLeagueTier === null) {
     return (
       <div className="flex gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -36,12 +34,15 @@ export function LeagueSelector({
   }
 
   return (
-    <Tabs value={selectedLeagueId} onValueChange={onSelect}>
+    <Tabs
+      value={String(selectedLeagueTier)}
+      onValueChange={(value) => onSelect(Number(value))}
+    >
       <TabsList variant="line" className="flex-wrap">
         {leagues.map((league) => (
           <TabsTrigger
-            key={league._id}
-            value={league._id}
+            key={league.leagueTier}
+            value={String(league.leagueTier)}
             className="font-minecraft text-xs tracking-wider uppercase"
           >
             {league.name}

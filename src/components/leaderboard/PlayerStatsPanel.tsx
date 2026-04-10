@@ -1,9 +1,9 @@
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,7 +13,7 @@ import type { Id } from "../../../convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
 
 function formatTime(ms: number): string {
-  if (ms === 0) return "—"
+  if (ms === 0) return "-"
   const totalSeconds = Math.floor(ms / 1000)
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
@@ -21,7 +21,6 @@ function formatTime(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}.${String(millis).padStart(3, "0")}`
 }
 
-// ELO tier config
 const ELO_TIERS = [
   {
     min: 2000,
@@ -65,43 +64,36 @@ const ELO_TIERS = [
     border: "border-neutral-600/30",
     bg: "bg-neutral-600/10",
   },
-]
+] as const
 
 function getTier(elo: number) {
-  return ELO_TIERS.find((t) => elo >= t.min) ?? ELO_TIERS[ELO_TIERS.length - 1]
+  return ELO_TIERS.find((tier) => elo >= tier.min) ?? ELO_TIERS[ELO_TIERS.length - 1]
 }
 
-function MovementBadge({ movement }: { movement: string }) {
+function MovementBadge({
+  movement,
+}: {
+  movement: "promoted" | "demoted" | "none"
+}) {
   switch (movement) {
     case "promoted":
       return (
         <Badge className="border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0 text-[10px] text-emerald-400">
-          ↑ Promoted
+          Promoted
         </Badge>
       )
-    case "relegated":
+    case "demoted":
       return (
         <Badge className="border-red-500/20 bg-red-500/10 px-1.5 py-0 text-[10px] text-red-400">
-          ↓ Relegated
+          Demoted
         </Badge>
       )
-    case "stayed":
+    case "none":
       return (
         <Badge className="border-neutral-500/20 bg-neutral-500/10 px-1.5 py-0 text-[10px] text-neutral-400">
-          → Stayed
+          Stayed
         </Badge>
       )
-    case "new":
-      return (
-        <Badge
-          variant="outline"
-          className="px-1.5 py-0 text-[10px] text-muted-foreground"
-        >
-          New
-        </Badge>
-      )
-    default:
-      return null
   }
 }
 
@@ -123,22 +115,22 @@ export function PlayerStatsPanel({
 
   const tier = stats ? getTier(stats.elo) : null
 
-  // Merge league history into weekly breakdown by weekNumber
   const mergedWeeks = stats
     ? stats.weeklyBreakdown.map((week) => {
         const historyEntry = stats.leagueHistory.find(
-          (h) => h.weekNumber === week.weekNumber
+          (entry) => entry.weekNumber === week.weekNumber
         )
+
         return {
           ...week,
-          leagueNumber: historyEntry?.leagueNumber ?? null,
-          movement: historyEntry?.movement ?? "stayed",
+          leagueNumber: historyEntry?.leagueNumber ?? week.leagueNumber,
+          movement: historyEntry?.movement ?? "none",
         }
       })
     : []
 
   return (
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+    <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent
         side="right"
         className="flex flex-col gap-0 overflow-hidden border-l border-primary/10 p-0 sm:max-w-md"
@@ -217,9 +209,9 @@ export function PlayerStatsPanel({
                 </p>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {mergedWeeks.map((week, i) => (
+                  {mergedWeeks.map((week) => (
                     <div
-                      key={i}
+                      key={week.weekNumber}
                       className="overflow-hidden rounded-sm border border-primary/10 bg-primary/3"
                     >
                       <div className="flex items-center justify-between border-b border-primary/10 bg-primary/4 px-3 py-2">
@@ -227,11 +219,9 @@ export function PlayerStatsPanel({
                           <span className="font-minecraft text-xs tracking-wider text-foreground/90 uppercase">
                             Week {week.weekNumber}
                           </span>
-                          {week.leagueNumber !== null && (
-                            <span className="text-[9px] tracking-wider text-muted-foreground uppercase">
-                              · League {week.leagueNumber}
-                            </span>
-                          )}
+                          <span className="text-[9px] tracking-wider text-muted-foreground uppercase">
+                            · League {week.leagueNumber}
+                          </span>
                         </div>
                         <MovementBadge movement={week.movement} />
                       </div>
@@ -251,8 +241,8 @@ export function PlayerStatsPanel({
                           </span>
                           <span className="mt-0.5 text-sm tabular-nums">
                             {formatTime(
-                              week.matches > 0
-                                ? Math.round(week.totalTimeMs / week.matches)
+                              week.timedMatches > 0
+                                ? Math.round(week.totalTimeMs / week.timedMatches)
                                 : 0
                             )}
                           </span>
@@ -267,7 +257,7 @@ export function PlayerStatsPanel({
                         </div>
                       </div>
 
-                      {week.matchDetails && week.matchDetails.length > 0 && (
+                      {week.matchDetails.length > 0 && (
                         <div className="border-t border-primary/10 px-3 pt-1.5 pb-3">
                           <span className="mb-1.5 block text-[9px] tracking-wider text-muted-foreground uppercase">
                             Match Placements
@@ -283,13 +273,14 @@ export function PlayerStatsPanel({
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-foreground">
-                                    {match.placement
-                                      ? `#${match.placement}`
-                                      : "—"}
+                                    {match.dnf
+                                      ? "DNF"
+                                      : match.placement !== null
+                                        ? `#${match.placement}`
+                                        : "-"}
                                   </span>
                                   <span className="text-[10px] text-muted-foreground/70">
-                                    {formatTime(match.timeMs)} ·{" "}
-                                    {match.pointsWon} pts
+                                    {formatTime(match.timeMs ?? 0)} · {match.pointsWon} pts
                                   </span>
                                 </div>
                               </div>

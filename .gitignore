@@ -24,9 +24,15 @@ pnpm-debug.log*
 
 .env.local
 scripts/data/
+tests/data/
 db_snapshots/
 bot/
 nonPublicScripts/
 
-*.report.md
+plans/
 
+*.report.md
+*.idea.md
+*.plan.md
+
+docker/

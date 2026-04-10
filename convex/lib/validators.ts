@@ -1,82 +1,118 @@
 import { z } from "zod"
 
-export const PlayersSchema = z.array(
-  z.object({
-    name: z
-      .string("You must provide a name for each player.")
-      .min(1, "Name must be at least 1 character long."),
-    elo: z
-      .int("You must provide an elo for each player.")
-      .min(0, "Elo must be at least 0."),
-    leagueTier: z
-      .int("You must provide a league tier for each player.")
-      .min(1, "League tier must be at least 1.")
-      .max(6, "League tier must be at most 6."),
+const positiveInt = (field: string) =>
+  z.int(`${field} must be an integer.`).min(1, `${field} must be at least 1.`)
+
+const nonEmptyString = (field: string) =>
+  z.string(`${field} must be a string.`).min(1, `${field} must not be empty.`)
+
+export const CompetitionSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  maxTimeLimitMs: z
+    .number("maxTimeLimitMs must be a number.")
+    .nonnegative("maxTimeLimitMs must be at least 0.")
+    .int("maxTimeLimitMs must be an integer."),
+  startingTime: z.optional(
+    z
+      .number("startingTime must be a number.")
+      .int("startingTime must be an integer.")
+  ),
+})
+
+export const CompetitionStatusSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  status: z.enum(["active", "ended"], {
+    error: "status must be either 'active' or 'ended'.",
   }),
-  "You must provide an array of players."
-)
-
-export const MatchSchema = z.object({
-  weekNumber: z
-    .int("weekNumber must be an integer.")
-    .min(1, "weekNumber must be at least 1."),
-  matchNumber: z
-    .int("matchNumber must be an integer.")
-    .min(1, "matchNumber must be at least 1."),
-  leagueTier: z
-    .int("leagueTier must be an integer.")
-    .min(1, "leagueTier must be at least 1.")
-    .max(6, "leagueTier must be at most 6."),
-  rankedMatchId: z
-    .string("rankedMatchId must be a string.")
-    .min(1, "rankedMatchId must not be empty."),
-  results: z.array(
-    z.object({
-      playerName: z
-        .string("playerName must be a string.")
-        .min(1, "playerName must be at least 1 character long."),
-      pointsWon: z.number("pointsWon must be a number."),
-      timeMs: z.number("timeMs must be a number."),
-      placement: z
-        .int("placement must be an integer.")
-        .min(1, "placement must be at least 1."),
-    }),
-    "results must be an array."
-  ),
 })
 
-export const AdjustSchema = z.object({
-  matchNumber: z
-    .int("matchNumber must be an integer.")
-    .min(1, "matchNumber must be at least 1."),
-  leagueTier: z
-    .int("leagueTier must be an integer.")
-    .min(1, "leagueTier must be at least 1.")
-    .max(6, "leagueTier must be at most 6."),
-  player: z
-    .string("player must be a string.")
-    .min(1, "player must be at least 1 character long."),
-  points: z.number("points must be a number."),
+export const RegisterPlayerSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  uuid: nonEmptyString("uuid"),
+  ign: nonEmptyString("ign"),
+  elo: z.number("elo must be a number.").optional(),
 })
 
-export const WeekTransitionSchema = z.object({
-  weekNumber: z
-    .int("weekNumber must be an integer.")
-    .min(1, "weekNumber must be at least 1."),
-  newWeek: z
-    .int("newWeek must be an integer.")
-    .min(1, "newWeek must be at least 1."),
-  players: z.array(
-    z.object({
-      name: z
-        .string("name must be a string.")
-        .min(1, "name must be at least 1 character long."),
-      elo: z.int("elo must be an integer.").min(0, "elo must be at least 0."),
-      leagueTier: z
-        .int("leagueTier must be an integer.")
-        .min(1, "leagueTier must be at least 1.")
-        .max(6, "leagueTier must be at most 6."),
-    }),
-    "players must be an array."
-  ),
+export const UnregisterPlayerSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  uuid: nonEmptyString("uuid"),
 })
+
+export const UpdatePlayerLeagueSchema = z.object({
+  uuid: nonEmptyString("uuid"),
+  leagueTier: positiveInt("leagueTier"),
+})
+
+export const CreateEmptyMatchSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  matchNumber: positiveInt("matchNumber"),
+})
+
+export const ClearMatchResultsSchema = CreateEmptyMatchSchema
+
+export const MatchResultImportSchema = z.object({
+  uuid: nonEmptyString("results[].uuid"),
+  timeMs: z.union([
+    z
+      .number("results[].timeMs must be a number.")
+      .int("results[].timeMs must be an integer."),
+    z.null(),
+  ]),
+  dnf: z.boolean("results[].dnf must be a boolean."),
+  placement: z.union([
+    z
+      .int("results[].placement must be an integer.")
+      .min(1, "results[].placement must be at least 1."),
+    z.null(),
+  ]),
+  pointsWon: z
+    .number("results[].pointsWon must be a number.")
+    .nonnegative("results[].pointsWon must be at least 0."),
+})
+
+export const ImportMatchSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  matchNumber: positiveInt("matchNumber"),
+  rankedMatchId: nonEmptyString("rankedMatchId"),
+  results: z.array(MatchResultImportSchema, "results must be an array."),
+})
+
+export const PointAdjustmentSchema = z.object({
+  leagueTier: positiveInt("leagueTier"),
+  weekNumber: positiveInt("weekNumber"),
+  uuid: nonEmptyString("uuid"),
+  manualAdjustmentPoints: z.number("manualAdjustmentPoints must be a number."),
+})
+
+export const MovementSchema = z
+  .object({
+    leagueTier: positiveInt("leagueTier"),
+    weekNumber: positiveInt("weekNumber"),
+    promotedUuids: z.array(
+      z.string("promotedUuids entries must be strings.").min(1),
+      "promotedUuids must be an array."
+    ),
+    demotedUuids: z.array(
+      z.string("demotedUuids entries must be strings.").min(1),
+      "demotedUuids must be an array."
+    ),
+  })
+  .superRefine((value, ctx) => {
+    const demotedLookup = new Set(value.demotedUuids)
+    const overlap = value.promotedUuids.filter((uuid) =>
+      demotedLookup.has(uuid)
+    )
+    if (overlap.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A uuid cannot be both promoted and demoted.",
+        path: ["promotedUuids"],
+      })
+    }
+  })
