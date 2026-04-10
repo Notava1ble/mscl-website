@@ -10,6 +10,7 @@
     "astro": "astro",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,astro}\"",
+    "test": "vitest run",
     "typecheck": "astro check"
   },
   "dependencies": {
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "convex-test": "^0.0.47",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -47,6 +49,7 @@
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.4"
+    "typescript-eslint": "^8.46.4",
+    "vitest": "^4.1.4"
   }
 }
