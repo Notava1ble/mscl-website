@@ -1,131 +1,142 @@
-## MSCL Website – Living Specification
+# MSRL Website Spec
 
-This document is the **living spec** for the MSCL website. It describes both:
+## Purpose
 
-- The **intended behavior** of the system, and
-- The **current implementation** in this repo, focusing on the integration between the Discord Bot, the Convex Backend, and the React Frontend.
+The MSRL website is the public companion to the Minecraft Speedrunning Ranked Leagues tournament.
 
----
+Its job is to:
 
-## 1. Product Overview
+- show weekly league standings
+- show match history and player performance
+- preserve historical tournament data
+- reflect the state produced by the tournament hosts and their Discord bot
 
-The MSCL website is a public **leaderboard and stats portal** for a multi‑league, weekly Minecraft speedrunning tournament:
+Its job is not to:
 
-- Players are placed into **tiered leagues** (e.g. Tier 1–6).
-- Each week, players compete in **matches (seeds)** within their league.
-- At the end of each week, players can be **promoted, relegated, or remain** in their tier.
+- act as the primary tournament control panel
+- decide tournament rules on its own
+- calculate tournament policy outside the workflow defined by the hosts and bot
 
-The website is **not** the source of truth for competition logic.
+The website is a read-focused product for players, spectators, and organizers who want to inspect the state of a week after the bot has written it.
 
-- A **Discord Bot (Node.js)**:
-  - Manages registrations, match time tracking, tie-breakers, DNF penalties, and point distribution.
-  - Controls the start (`/nm`) and end (`/em`) of the weekly competitions.
-  - Acts as the "Game Engine", calling this project’s HTTP APIs to persist data.
-- The **MSCL website (Convex + Astro/React)**:
-  - Validates and stores the data in a highly indexed, relational schema.
-  - Exposes **read‑only** real-time views and historical stats for spectators and players.
+## Tournament Model
 
----
+MSRL is a recurring weekly tournament split into multiple skill-based leagues.
 
-## 2. Tech Stack
+- The tournament currently operates with tiered leagues, and that structure may grow or shrink over time.
+- A league usually contains around 20 to 50 players, but the system should tolerate smaller or larger groups.
+- Each week, all players in a league join a single room and compete for the fastest speedrun time.
+- Each league plays several matches during the week.
+- Weekly total points determine promotions, relegations, or no movement.
 
-- **Frontend**: Astro (static pages) + React islands.
-- **UI**: shadcn/ui + custom components.
-- **Backend & DB**: Convex (document DB, queries, mutations, HTTP actions).
-- **Game Server / Ingestion**: Discord.js Bot.
+The exact live rule set, match counts, time limits, and movement rules are documented publicly and may evolve separately from this file:
 
----
+- `https://mscl.pages.dev/rules/organization/`
+- `https://mscl.pages.dev/rules/points/`
+- `https://mscl.pages.dev/rules/relegations/`
 
-## 3. Data Model (Convex)
+This spec should describe how the product is meant to be used, not duplicate rule math that is expected to change.
 
-Authoritative definitions are in `convex/schema.ts`. The database is heavily denormalized to ensure fast frontend queries.
+## Core Product Expectations
 
-- `players` – Global player profiles (`uuid`, `ign`, `lowercaseIgn`, `elo`, `currentLeagueNumber`).
-- `competitions` – Represents a specific week in a specific league. Includes `leagueTier`, `weekNumber`, and `status` (`"active"` | `"ended"`).
-- `registrations` – The central junction linking a player to a competition. Stores `manualAdjustmentPoints`, `totalPoints`, and week-end `movementStatus` (`promoted`, `demoted`, `none`).
-- `matches` – Individual seeds/matches within a competition.
-- `matchResults` – A specific player's performance on a specific match (`timeMs`, `dnf`, `placement`, `pointsWon`).
+The website should model the tournament in a way that feels natural to the hosts' workflow.
 
----
+- A week is made up of separate competitions, one per league.
+- A competition has a roster of registered players, a set of matches, standings, and an end state.
+- A player's weekly standing is the sum of match points plus any manual host adjustments.
+- Once a competition is finalized, its results should be treated as historical data, not live editable state.
 
-## 4. Ingestion APIs (Discord Bot-Facing)
+The public site should let people:
 
-All writes are done via Convex HTTP actions in `convex/http.ts`.
+- browse leagues
+- browse weeks
+- inspect standings for a specific week and league
+- inspect the matches that were played in that competition
+- inspect player performance and history
 
-### 4.1 Authentication and Safety
+Hosts should primarily interact with the tournament through the Discord bot, not through a separate admin UI on the website.
 
-- Every ingestion endpoint requires an `x-api-key` header matching `process.env.WEBSITE_API_KEY`.
-- Validation is done using a timing-safe crypto comparison.
-- **Finalization Lock:** If a competition's `status` is `"ended"`, structural endpoints (like `/api/write/competition`) will block mutations with a `403 Forbidden` to protect historical integrity.
+## Bot-Centered Workflow
 
-### 4.2 Endpoints and Bot Command Mapping
+The intended operational flow is:
 
-**1. Create/Restart Competition**
+1. Hosts use `/nm` in a league Discord channel to create a new competition for that league and week.
+2. Registration is opened in the bot a few hours before the event starts.
+3. When the event starts, registration is closed in the bot so players cannot join or leave in a way that would skew standings or points.
+4. Hosts use `/ns` to create a new seed for the league. In the website domain this is stored as a match.
+5. Hosts use `/import` to send the match data into the website backend, and update the bots internal state.
+6. If results later change because of corrections, cheating rulings, host mistakes, or `/edit`, the bot should call the same api as `/import` again with the corrected full match data.
+7. If hosts need to add or remove points outside the imported match results, they use `/adjust`.
+8. When all matches are done and results are verified, hosts use `/em` to end the competition for that league and week.
+9. After the competition is ended, hosts use `/relegate` to apply the final weekly league movements.
+10. If a later correction is needed outside the normal `/relegate` flow, hosts can use `/promote` and `/demote` to manually change a player's league placement. This isn't captured as the weekly relegations/promotions in the leaderboards.
+11. After the bot is finished with that week's operational flow, it uses `/dm` to clear its own internal state and prepare for the next week.
 
-- **Endpoint:** `POST /api/write/competition`
-- **Bot Command:** `/nm`
-- **Behavior:**
-  - If the week is `"ended"`, returns 403.
-  - If it already exists as `"active"` (admin resetting state), wipes all previous registrations/matches for that week and restarts it.
-  - Otherwise, creates a new `"active"` competition.
+`/dm` is a bot-only cleanup concept. It should not require a matching concept in the website backend because that internal bot state is not the website's responsibility.
 
-**2. Update Competition Status**
+## Match Import Philosophy
 
-- **Endpoint:** `PATCH /api/write/competition/status`
-- **Bot Commands:** `/em` (sets to `"ended"`), `/unend` (sets to `"active"`).
-- **Behavior:** Locks or unlocks the competition from further structural overwrites.
+The website should think of match imports as full snapshots, not partial patches.
 
-**3. Player Registration**
+- `/import` is the authoritative write for match results.
+- If one player's placement, time, or points change, the corrected match should be re-imported as the new truth for that match.
+- The backend should store the latest accepted version of that match.
+- Standings are provided by the bot to make the backend as loose as possible without breaking stuff. For example, if the bot somehow thinks the player with most points should be last, than so be it.
 
-- **Endpoint:** `POST /api/write/player` & `PATCH /api/write/player/unregister`
-- **Bot Commands:** `/reg`, `/admin_reg` (POST) | `/unreg`, `/remove` (PATCH).
-- **Behavior:** Upserts the player profile and creates/removes the `registrations` link for that competition.
-  - Player identity is keyed by Minecraft UUID, not Discord ID.
-  - **Constraint:** Unregistering a player is blocked if they have existing match results for the competition.
+This is important because placements, points, and winners are coupled. A single-player edit can affect the whole match.
 
-**4. Match/Seed Management**
+## League Movement Philosophy
 
-- **Endpoint:** `POST /api/write/match/create` & `PATCH /api/write/match/clear`
-- **Bot Commands:** `/ns` (Creates empty match), `/clear` (Wipes results for a match).
+End-of-week movement is a separate step from importing matches.
 
-**5. Import/Update Match Results**
+- Match imports establish the weekly results.
+- Ending the competition confirms that the week is over.
+- `/relegate` applies the intended promotion and demotion outcome for that finished competition.
+- `/promote` and `/demote` exist as manual correction tools outside the normal batch movement step.
 
-- **Endpoint:** `POST /api/write/match/results`
-- **Bot Commands:** `/import`, `/edit`, `/r`.
-- **Behavior:** Receives a full array of results. Upserts the match and all player `matchResults`.
-  - _Note:_ Even when editing a single player's time (`/edit`), the bot recalculates all placements locally and pushes the _entire_ match to this endpoint to guarantee point consistency.
+The website should preserve both ideas:
 
-**6. Manual Point Adjustments**
+- what happened in the finished competition
+- where the player belongs going into the next week
 
-- **Endpoint:** `PATCH /api/write/adjustment`
-- **Bot Command:** `/adjust`
-- **Behavior:** Updates `manualAdjustmentPoints` on a player's `registrations` row, which propagates to their `totalPoints`.
+## System Responsibilities
 
-**7. League Movements (Promotions/Demotions)**
+The website backend is responsible for:
 
-- **Endpoint:** `PATCH /api/write/movements`
-- **Bot Command:** `/relegate`
-- **Behavior:** Receives lists of promoted/demoted player UUIDs. Updates their `registrations.movementStatus` and shifts their global `currentLeagueNumber`.
+- accepting tournament data from the bot
+- validating that incoming writes are structurally valid to some extend
+- storing enough history to render weeks, matches, standings, and player views
+- preventing accidental corruption of already finalized competitions
+- exposing stable read models for the public site
 
----
+The bot is responsible for:
 
-## 5. Frontend Behavior & Queries
+- controlling registration windows
+- coordinating the host workflow
+- gathering source match data
+- recalculating corrected match data when edits happen
+- deciding when a competition should start or end
+- deciding when league movements should be applied
 
-The frontend uses Convex React hooks (`useQuery`) to display real-time leaderboards.
+The website should not assume it can reconstruct every host intent from raw results alone. Some tournament actions are explicit host decisions and should arrive from the bot as explicit writes.
 
-### 5.1 Weekly/Current Leaderboard
+## Product Boundaries
 
-- **Intended user goal:** See the standings for a specific league and week (including live ongoing weeks).
+This project should continue to behave like a tournament data layer and public viewer, not a second rules engine.
 
-## 6. Edge Cases & System Guarantees
+- The frontend is for viewing, not hosting.
+- The backend stores and protects the tournament state that the bot submits.
+- Tournament rules may evolve without requiring this spec to be rewritten every time a formula or percentage changes.
 
-1. **Mistake Deletion via `/dm`**
-   - The bot has a `/dm` command to wipe its local memory of an ongoing setup.
-   - The API handles this implicitly: `/dm` does not fire an API call. The website simply holds the abandoned `"active"` data. If `/nm` is called again later for that week, the API's "Safe Upsert" cleanly wipes the ghost data and restarts.
+When this file needs updates, prefer documenting:
 
-2. **Editing Match Times**
-   - Because placements and points depend on _everyone's_ times, there is no `/edit-single-result` API.
-   - The bot handles edits locally, computes new placements, and uses the `POST /api/write/match/results` bulk endpoint to overwrite the entire match state safely.
+- workflow changes
+- ownership boundaries
+- lifecycle guarantees
+- operator expectations
 
-3. **Denormalized Sorting**
-   - `totalPoints` is pre-calculated and stored directly on the `registrations` table during match imports and point adjustments. This prevents the frontend from needing complex aggregation logic, ensuring $O(1)$ fast reads for leaderboards.
+Avoid filling it with:
+
+- unstable route-by-route payload minutiae
+- implementation details that are obvious from code
+- rule constants that are better maintained in public rules pages
