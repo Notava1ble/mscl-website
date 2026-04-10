@@ -1,11 +1,15 @@
 import { query } from "./_generated/server"
+import { getLeagueName } from "./lib/readModels"
 
 export const listLeagues = query({
+  args: {},
   handler: async (ctx) => {
-    return await ctx.db
-      .query("leagues")
-      .withIndex("by_tier_level")
-      .order("asc")
-      .collect()
+    const leagues = await ctx.db.query("leagues").collect()
+    return leagues
+      .sort((a, b) => a.leagueTier - b.leagueTier)
+      .map((league) => ({
+        leagueTier: league.leagueTier,
+        name: league.name ?? getLeagueName(league.leagueTier),
+      }))
   },
 })

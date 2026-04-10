@@ -1,55 +1,61 @@
-import { useState, useEffect, useCallback } from "react"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useQuery } from "convex/react"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { CustomButton } from "@/components/ui-custom/Button"
 import { LeagueSelector } from "./LeagueSelector"
 import { StandingsTable } from "./StandingsTable"
-import { PlayerStatsPanel } from "./PlayerStatsPanel"
 import ConvexClientProvider from "@/components/ConvexClientProvider"
+
+const LazyPlayerStatsPanel = lazy(async () => {
+  const module = await import("./PlayerStatsPanel")
+  return { default: module.PlayerStatsPanel }
+})
 
 function LeaderboardContent() {
   const leagues = useQuery(api.leagues.listLeagues)
-  // const currentWeek = useQuery(api.weeks.getCurrentWeek)
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null)
+  const [selectedLeagueTier, setSelectedLeagueTier] = useState<number | null>(
+    null
+  )
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [playerPanelOpen, setPlayerPanelOpen] = useState(false)
-
-  // Auto-select league: prefer URL param, fall back to first league
-  useEffect(() => {
-    if (!leagues || leagues.length === 0 || selectedLeagueId) return
-
-    const params = new URLSearchParams(window.location.search)
-    const tierParam = params.get("league")
-
-    const matched = tierParam
-      ? leagues.find((l) => String(l.tierLevel) === tierParam)
-      : null
-
-    setSelectedLeagueId(matched ? matched._id : leagues[0]._id)
-  }, [leagues, selectedLeagueId])
-
-  const onLeagueSelect = useCallback(
-    (leagueId: string) => {
-      setSelectedLeagueId(leagueId)
-      setSelectedPlayerId(null)
-
-      const league = leagues?.find((l) => l._id === leagueId)
-      if (league) {
-        const params = new URLSearchParams(window.location.search)
-        params.set("league", String(league.tierLevel))
-        history.pushState({}, "", `?${params.toString()}`)
-      }
-    },
+  const leagueTiers = useMemo(
+    () => new Set((leagues ?? []).map((league) => league.leagueTier)),
     [leagues]
   )
 
+  useEffect(() => {
+    if (!leagues || leagues.length === 0 || selectedLeagueTier !== null) return
+
+    const params = new URLSearchParams(window.location.search)
+    const tierParam = params.get("league")
+    const parsedTier = tierParam ? Number(tierParam) : Number.NaN
+
+    setSelectedLeagueTier(
+      Number.isFinite(parsedTier) && leagueTiers.has(parsedTier)
+        ? parsedTier
+        : leagues[0].leagueTier
+    )
+  }, [leagues, selectedLeagueTier, leagueTiers])
+
+  const onLeagueSelect = useCallback((leagueTier: number) => {
+    setSelectedLeagueTier(leagueTier)
+    setSelectedPlayerId(null)
+
+    const params = new URLSearchParams(window.location.search)
+    params.set("league", String(leagueTier))
+    history.pushState({}, "", `?${params.toString()}`)
+  }, [])
+
   const standings = useQuery(
     api.leaderboard.getLeagueStandings,
-    selectedLeagueId ? { leagueId: selectedLeagueId as Id<"leagues"> } : "skip"
+    selectedLeagueTier !== null ? { leagueTier: selectedLeagueTier } : "skip"
   )
 
-  const selectedLeague = leagues?.find((l) => l._id === selectedLeagueId)
+  const selectedLeague = useMemo(
+    () => leagues?.find((league) => league.leagueTier === selectedLeagueTier),
+    [leagues, selectedLeagueTier]
+  )
 
   function handlePlayerClick(playerId: string) {
     setSelectedPlayerId(playerId)
@@ -78,11 +84,11 @@ function LeaderboardContent() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <LeagueSelector
           leagues={leagues}
-          selectedLeagueId={selectedLeagueId}
+          selectedLeagueTier={selectedLeagueTier}
           onSelect={onLeagueSelect}
         />
         {selectedLeague && (
-          <a href={`/week?league=${selectedLeague.tierLevel}&week=latest`}>
+          <a href={`/week?league=${selectedLeague.leagueTier}&week=latest`}>
             <CustomButton
               variant="outline"
               size="sm"
@@ -105,14 +111,18 @@ function LeaderboardContent() {
       </div>
 
       {/* Player Stats Panel */}
-      <PlayerStatsPanel
-        playerId={selectedPlayerId ? (selectedPlayerId as Id<"players">) : null}
-        open={playerPanelOpen}
-        onClose={() => {
-          setPlayerPanelOpen(false)
-          setSelectedPlayerId(null)
-        }}
-      />
+      {playerPanelOpen && selectedPlayerId ? (
+        <Suspense fallback={null}>
+          <LazyPlayerStatsPanel
+            playerId={selectedPlayerId as Id<"players">}
+            open={playerPanelOpen}
+            onClose={() => {
+              setPlayerPanelOpen(false)
+              setSelectedPlayerId(null)
+            }}
+          />
+        </Suspense>
+      ) : null}
     </section>
   )
 }

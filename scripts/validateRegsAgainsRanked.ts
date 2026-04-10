@@ -1,9 +1,9 @@
-import REGS from "./data/week4regs_old"
+import REGS from "./data/week4regs"
 import fs from "fs"
 
 type RegType = (typeof REGS)[number]
 
-type UserProfile = {
+export type UserProfile = {
   uuid: string
   nickname: string
   roleType: string

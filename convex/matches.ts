@@ -1,314 +1,87 @@
 import { v } from "convex/values"
-import { internalMutation, internalQuery } from "./_generated/server"
+import { internalQuery } from "./_generated/server"
+import { getPlayerByUuid } from "./lib/readModels"
 
-export const ingestMatch = internalMutation({
-  args: {
-    matchNumber: v.number(),
-    weekNumber: v.number(),
-    leagueTier: v.number(),
-    rankedMatchId: v.string(),
-    results: v.array(
-      v.object({
-        playerName: v.string(),
-        pointsWon: v.number(),
-        timeMs: v.number(),
-        placement: v.number(),
-      })
-    ),
-  },
-  handler: async (ctx, args) => {
-    // Find current week
-    let targetWeek = await ctx.db
-      .query("weeks")
-      .withIndex("by_week_number", (q) => q.eq("weekNumber", args.weekNumber))
-      .first()
-
-    // Autocreate week if it doesnt exist
-    if (!targetWeek) {
-      const weekId = await ctx.db.insert("weeks", {
-        weekNumber: args.weekNumber,
-        isCurrent: true,
-      })
-      targetWeek = await ctx.db.get(weekId)
-      if (!targetWeek) {
-        console.error(
-          `[Internal Error] Failed to create week record ${args.weekNumber}`
-        )
-        throw new Error("Failed to create current week")
-      }
-    }
-
-    // Find league
-    let league = await ctx.db
-      .query("leagues")
-      .withIndex("by_tier_level", (q) => q.eq("tierLevel", args.leagueTier))
-      .first()
-
-    // Autocreate league if it doesnt exist
-    if (!league) {
-      const leagueId = await ctx.db.insert("leagues", {
-        name: `League ${args.leagueTier}`,
-        tierLevel: args.leagueTier,
-      })
-      league = await ctx.db.get(leagueId)
-      if (!league) {
-        console.error(
-          `[Internal Error] Failed to create league tier ${args.leagueTier}`
-        )
-        throw new Error("Failed to create league")
-      }
-    }
-
-    // Upsert match
-    let match = await ctx.db
-      .query("matches")
-      .withIndex("by_week_league_match", (q) =>
-        q
-          .eq("weekId", targetWeek._id)
-          .eq("leagueId", league._id)
-          .eq("matchNumber", args.matchNumber)
-      )
-      .first()
-
-    // Delete existing match results for this match if it exists so we can insert the new ones
-    if (match) {
-      if (match.rankedMatchId !== args.rankedMatchId) {
-        await ctx.db.patch(match._id, { rankedMatchId: args.rankedMatchId })
-      }
-      const existingResults = await ctx.db
-        .query("matchResults")
-        .withIndex("by_match", (q) => q.eq("matchId", match!._id))
-        .collect()
-
-      for (const res of existingResults) {
-        await ctx.db.delete(res._id)
-      }
-    } else {
-      const matchId = await ctx.db.insert("matches", {
-        weekId: targetWeek._id,
-        leagueId: league._id,
-        rankedMatchId: args.rankedMatchId,
-        matchNumber: args.matchNumber,
-      })
-      match = await ctx.db.get(matchId)
-      if (!match) {
-        console.error(
-          `[Internal Error] Failed to create match entry ${args.matchNumber} in league ${args.leagueTier}`
-        )
-        throw new Error("Failed to create match")
-      }
-    }
-
-    // Insert results
-    const seenPlacements = new Set<number>()
-    for (const res of args.results) {
-      if (seenPlacements.has(res.placement)) {
-        console.error(
-          `[Validation] Duplicate placement ${res.placement} in match results`
-        )
-        throw new Error("Duplicate placement detected within match results")
-      }
-      if (!Number.isInteger(res.placement) || res.placement < 1) {
-        console.error(
-          `[Validation] Invalid placement ${res.placement} for ${res.playerName}`
-        )
-        throw new Error("Placement must be a positive integer")
-      }
-      seenPlacements.add(res.placement)
-
-      // Find or create player
-      let player = await ctx.db
-        .query("players")
-        .withIndex("by_name", (q) => q.eq("name", res.playerName))
-        .first()
-
-      if (!player) {
-        const playerId = await ctx.db.insert("players", {
-          name: res.playerName,
-          elo: 0, // Default ELO if not provided
-          currentLeagueId: league._id,
-        })
-        player = await ctx.db.get(playerId)
-        if (!player) {
-          console.error(
-            `[Internal Error] Failed to create player ${res.playerName}`
-          )
-          throw new Error("Failed to create player")
-        }
-      }
-
-      await ctx.db.insert("matchResults", {
-        matchId: match._id,
-        playerId: player._id,
-        pointsWon: res.pointsWon,
-        timeMs: res.timeMs,
-        placement: res.placement,
-      })
-    }
-
-    return {
-      success: true,
-      matchId: match._id,
-      resultsInserted: args.results.length,
-    }
-  },
-})
-
-export const adjustMatch = internalMutation({
-  args: {
-    matchNumber: v.number(),
-    leagueTier: v.number(),
-    player: v.string(),
-    points: v.number(),
-  },
-  handler: async (ctx, args) => {
-    // Find target week
-    const currentWeek = await ctx.db
-      .query("weeks")
-      .withIndex("by_current", (q) => q.eq("isCurrent", true))
-      .first()
-
-    if (!currentWeek) {
-      console.error(
-        `[SERVER ERROR] No current week record found. This is impossible so if this error ever shows up, you know something is very wrong.`
-      )
-      throw new Error("Failed to find current week")
-    }
-
-    // Find league
-    let league = await ctx.db
-      .query("leagues")
-      .withIndex("by_tier_level", (q) => q.eq("tierLevel", args.leagueTier))
-      .first()
-
-    if (!league) {
-      console.error(
-        `[INVALID REQUEST] No league record found for league tier ${args.leagueTier}`
-      )
-      throw new Error("Failed to find league")
-    }
-
-    const match = await ctx.db
-      .query("matches")
-      .withIndex("by_week_league_match", (q) =>
-        q
-          .eq("weekId", currentWeek._id)
-          .eq("leagueId", league._id)
-          .eq("matchNumber", args.matchNumber)
-      )
-      .first()
-    if (!match) {
-      console.error(
-        `[INVALID REQUEST] No match record found for match ${args.matchNumber} in league ${args.leagueTier}`
-      )
-      throw new Error("Failed to find match")
-    }
-
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_name", (q) => q.eq("name", args.player))
-      .first()
-    if (!player) {
-      console.error(
-        `[INVALID REQUEST] No player record found for player ${args.player}`
-      )
-      throw new Error("Failed to find player")
-    }
-
-    const result = await ctx.db
-      .query("matchResults")
-      .withIndex("by_match_and_player", (q) =>
-        q.eq("matchId", match._id).eq("playerId", player._id)
-      )
-      .first()
-    if (!result) {
-      console.error(
-        `[INVALID REQUEST] No match result record found for match ${args.matchNumber} in league ${args.leagueTier}`
-      )
-      throw new Error("Failed to find match result")
-    }
-
-    await ctx.db.patch(result._id, { pointsWon: args.points })
-
-    return {
-      success: true,
-      weekNumber: currentWeek.weekNumber,
-      matchNumber: match.matchNumber,
-      leagueTier: league.tierLevel,
-      playerName: player.name,
-      points: args.points,
-    }
-  },
-})
-
+// This query assumes that a player only plays in one competition per week. If not, it will throw an error.
 export const listPlayerMatches = internalQuery({
   args: {
-    playerName: v.string(),
-    weekNumber: v.optional(v.number()),
+    uuid: v.string(),
+    weekNumber: v.number(),
   },
-  handler: async (ctx, args) => {
-    const player = await ctx.db
-      .query("players")
-      .withIndex("by_name", (q) => q.eq("name", args.playerName))
-      .first()
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    playerName: string
+    weekNumber: number
+    currentLeagueNumber: number
+    weekLeagueNumber: number | null
+    matches: {
+      matchNumber: number
+      rankedMatchId: string | null
+      pointsWon: number
+      timeMs: number | null
+      placement: number | null
+      dnf: boolean
+    }[]
+  }> => {
+    const player = await getPlayerByUuid(ctx, args.uuid)
     if (!player) {
-      console.warn(`[Data] No player found with name ${args.playerName}`)
       throw new Error("Player not found")
     }
 
-    const league = await ctx.db.get(player.currentLeagueId)
-
-    const week = args.weekNumber
-      ? await ctx.db
-          .query("weeks")
-          .withIndex("by_week_number", (q) =>
-            q.eq("weekNumber", args.weekNumber!)
-          )
-          .first()
-      : await ctx.db
-          .query("weeks")
-          .withIndex("by_current", (q) => q.eq("isCurrent", true))
-          .first()
-
-    if (!week) {
-      console.warn(
-        `[Data] No week found for weekNumber ${args.weekNumber || "(current week)"} when querying matches for player ${args.playerName}`
-      )
-      throw new Error("Week not found")
-    }
-
-    const matchesThisWeek = await ctx.db
-      .query("matches")
-      .withIndex("by_week_and_league", (q) =>
-        q.eq("weekId", week._id).eq("leagueId", player.currentLeagueId)
+    const matchResults = await ctx.db
+      .query("matchResults")
+      .withIndex("by_week_and_player", (q) =>
+        q.eq("weekNumber", args.weekNumber).eq("playerId", player._id)
       )
       .collect()
 
-    const playerMatches = (
-      await Promise.all(
-        matchesThisWeek.map(async (match) => {
-          const result = await ctx.db
-            .query("matchResults")
-            .withIndex("by_match_and_player", (q) =>
-              q.eq("matchId", match._id).eq("playerId", player._id)
-            )
-            .first()
+    if (matchResults.length === 0) {
+      return {
+        playerName: player.ign,
+        weekNumber: args.weekNumber,
+        currentLeagueNumber: player.currentLeagueNumber,
+        weekLeagueNumber: null,
+        matches: [],
+      }
+    }
 
-          if (!result) return null
-          return {
-            rankedMatchId: match.rankedMatchId,
-            pointsWon: result.pointsWon,
-            timeMs: result.timeMs,
-            placement: result.placement,
-          }
-        })
+    const competitionId = matchResults[0].competitionId
+    const leagueTier = matchResults[0].leagueTier
+    const allSameComp = matchResults.every(
+      (r) => r.competitionId === competitionId
+    )
+    if (!allSameComp)
+      throw new Error(
+        `Player has results across multiple competitions in week ${args.weekNumber}`
       )
-    ).filter((m) => m !== null)
+
+    // Only get the matches this player played in.
+    const matchIds = [...new Set(matchResults.map((r) => r.matchId))]
+    const matchesById = new Map(
+      (await Promise.all(matchIds.map((id) => ctx.db.get(id))))
+        .filter(Boolean)
+        .map((m) => [m!._id, m!])
+    )
+
+    const matches = matchResults
+      .sort((a, b) => a.matchNumber - b.matchNumber)
+      .map((result) => ({
+        matchNumber: result.matchNumber,
+        rankedMatchId: matchesById.get(result.matchId)?.rankedMatchId ?? null,
+        pointsWon: result.pointsWon,
+        timeMs: result.timeMs,
+        placement: result.placement,
+        dnf: result.dnf,
+      }))
+
     return {
-      playerName: player.name,
-      leagueName: league ? league.name : "Unknown",
-      weekNumber: week.weekNumber,
-      matches: playerMatches,
+      playerName: player.ign,
+      weekNumber: args.weekNumber,
+      currentLeagueNumber: player.currentLeagueNumber,
+      weekLeagueNumber: leagueTier,
+      matches,
     }
   },
 })

@@ -3,22 +3,28 @@ import { query } from "./_generated/server"
 
 export const getLeagueStandings = query({
   args: {
-    leagueId: v.id("leagues"),
+    leagueTier: v.number(),
   },
   handler: async (ctx, args) => {
     const players = await ctx.db
       .query("players")
-      .withIndex("by_league", (q) => q.eq("currentLeagueId", args.leagueId))
+      .withIndex("by_league", (q) =>
+        q.eq("currentLeagueNumber", args.leagueTier)
+      )
       .collect()
 
-    // Sort by elo descending
-    players.sort((a, b) => b.elo - a.elo)
+    players.sort((a, b) => {
+      const eloDiff = (b.elo ?? 0) - (a.elo ?? 0)
+      if (eloDiff !== 0) return eloDiff
+      return a.ign.localeCompare(b.ign)
+    })
 
-    return players.map((p, i) => ({
-      rank: i + 1,
-      playerId: p._id,
-      name: p.name,
-      elo: p.elo,
+    return players.map((player, index) => ({
+      rank: index + 1,
+      playerId: player._id,
+      name: player.ign,
+      elo: player.elo ?? 0,
+      leagueTier: player.currentLeagueNumber,
     }))
   },
 })

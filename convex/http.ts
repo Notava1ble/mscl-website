@@ -1,229 +1,198 @@
 import { httpRouter } from "convex/server"
-import { httpAction } from "./_generated/server"
 import { internal } from "./_generated/api"
-import { jsonError, validateApiKey, extractRequestBody } from "./lib/utils"
+import { httpAction } from "./_generated/server"
 import {
-  PlayersSchema,
-  MatchSchema,
-  WeekTransitionSchema,
-  AdjustSchema,
+  ClearMatchResultsSchema,
+  CompetitionSchema,
+  CompetitionStatusSchema,
+  CreateEmptyMatchSchema,
+  ImportMatchSchema,
+  MovementSchema,
+  PointAdjustmentSchema,
+  RegisterPlayerSchema,
+  UpdatePlayerLeagueSchema,
+  UnregisterPlayerSchema,
 } from "./lib/validators"
+import {
+  extractRequestBody,
+  jsonError,
+  jsonResponse,
+  validateWebsiteApiKey,
+} from "./lib/utils"
+import { z } from "zod"
 
 const http = httpRouter()
 
+type RouteResult =
+  | { ok: true; [key: string]: unknown }
+  | { ok: false; status: number; error: string }
+
+async function runProtectedJsonRoute<T>(args: {
+  request: Request
+  schema: z.ZodType<T>
+  routeLabel: string
+  run: (payload: T) => Promise<RouteResult>
+  successStatus?: number
+}) {
+  const authError = await validateWebsiteApiKey(args.request)
+  if (authError) return authError
+
+  const bodyResult = await extractRequestBody(args.request, args.schema)
+  if ("errorResponse" in bodyResult) return bodyResult.errorResponse
+
+  try {
+    const result = await args.run(bodyResult.data)
+    if (result.ok === false) {
+      return jsonError(result.error, result.status)
+    }
+
+    console.info(`[${args.routeLabel}] Success`, result)
+    return jsonResponse(result, args.successStatus ?? 200)
+  } catch (error) {
+    console.error(`[${args.routeLabel}] Unhandled error`, error)
+    return jsonError("Internal server error.", 500)
+  }
+}
+
+http.route({
+  path: "/api/write/competition",
+  method: "POST",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: CompetitionSchema,
+      routeLabel: "POST /api/write/competition",
+      successStatus: 200,
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.createOrRestartCompetition, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/competition/status",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: CompetitionStatusSchema,
+      routeLabel: "PATCH /api/write/competition/status",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.updateCompetitionStatus, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/player",
+  method: "POST",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: RegisterPlayerSchema,
+      routeLabel: "POST /api/write/player",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.registerPlayer, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/player/unregister",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: UnregisterPlayerSchema,
+      routeLabel: "PATCH /api/write/player",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.unregisterPlayer, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/player/league",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: UpdatePlayerLeagueSchema,
+      routeLabel: "PATCH /api/write/player/league",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.updatePlayerLeague, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/match/create",
+  method: "POST",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: CreateEmptyMatchSchema,
+      routeLabel: "POST /api/write/match/create",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.createEmptyMatch, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/match/clear",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: ClearMatchResultsSchema,
+      routeLabel: "PATCH /api/write/match/clear",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.clearMatchResults, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/match/results",
+  method: "POST",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: ImportMatchSchema,
+      routeLabel: "POST /api/write/match/results",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.importMatchData, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/adjustment",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: PointAdjustmentSchema,
+      routeLabel: "PATCH /api/write/adjustment",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.setPointAdjustment, payload),
+    })
+  ),
+})
+
+http.route({
+  path: "/api/write/movements",
+  method: "PATCH",
+  handler: httpAction(async (ctx, request) =>
+    runProtectedJsonRoute({
+      request,
+      schema: MovementSchema,
+      routeLabel: "PATCH /api/write/movements",
+      run: (payload) =>
+        ctx.runMutation(internal.writeApi.processMovements, payload),
+    })
+  ),
+})
+
 export default http
-
-http.route({
-  path: "/api/write/players",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    // 1. Validate API key
-    const authError = await validateApiKey(request, "WRITER_API_KEY")
-    if (authError) return authError
-
-    // 2. Extract and validate body
-    const bodyResult = await extractRequestBody(request, PlayersSchema)
-    if ("errorResponse" in bodyResult) return bodyResult.errorResponse
-    const playersList = bodyResult.data
-
-    // 3. Run mutation
-    try {
-      const result = await ctx.runMutation(
-        internal.players.createOrUpdatePlayers,
-        {
-          players: playersList.map((p) => ({
-            name: p.name,
-            elo: p.elo,
-            leagueTier: p.leagueTier,
-          })),
-        }
-      )
-
-      console.info(
-        `[Success] POST /api/write/players: Created/Updated ${result.count} players`
-      )
-      return new Response(
-        JSON.stringify({ success: true, updated: result.count }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-        }
-      )
-    } catch (err: any) {
-      console.error(`[Handler Error] POST /api/write/players:`, err)
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})
-
-http.route({
-  path: "/api/write/match",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    // Validate API key
-    const authError = await validateApiKey(request, "WRITER_API_KEY")
-    if (authError) return authError
-
-    // Extract and validate body
-    const bodyResult = await extractRequestBody(request, MatchSchema)
-    if ("errorResponse" in bodyResult) return bodyResult.errorResponse
-    const matchData = bodyResult.data
-
-    // Run mutation
-    try {
-      const result = await ctx.runMutation(internal.matches.ingestMatch, {
-        weekNumber: matchData.weekNumber,
-        matchNumber: matchData.matchNumber,
-        leagueTier: matchData.leagueTier,
-        rankedMatchId: matchData.rankedMatchId,
-        results: matchData.results,
-      })
-
-      console.info(
-        `[Success] POST /api/write/match: Ingested match ${matchData.matchNumber} for week ${matchData.weekNumber} (Tier ${matchData.leagueTier})`
-      )
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      })
-    } catch (err: any) {
-      console.error(`[Handler Error] POST /api/write/match:`, err)
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})
-
-http.route({
-  path: "/api/write/match/adjust",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    // Validate API key
-    const authError = await validateApiKey(request, "WRITER_API_KEY")
-    if (authError) return authError
-
-    // Extract and validate body
-    const bodyResult = await extractRequestBody(request, AdjustSchema)
-    if ("errorResponse" in bodyResult) return bodyResult.errorResponse
-    const matchData = bodyResult.data
-
-    // Run mutation
-    try {
-      const result = await ctx.runMutation(internal.matches.adjustMatch, {
-        matchNumber: matchData.matchNumber,
-        leagueTier: matchData.leagueTier,
-        player: matchData.player,
-        points: matchData.points,
-      })
-
-      console.info(
-        `[Success] POST /api/write/match: Adjusted points for ${result.playerName} to ${result.points} (Week ${result.weekNumber}, Match ${result.matchNumber}, Tier ${result.leagueTier})`
-      )
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      })
-    } catch (err: any) {
-      console.error(`[Handler Error] POST /api/write/match:`, err)
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})
-
-http.route({
-  path: "/api/write/weeks/transition",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
-    // Validate API key
-    const authError = await validateApiKey(request, "WRITER_API_KEY")
-    if (authError) return authError
-
-    // Extract and validate body
-    const bodyResult = await extractRequestBody(request, WeekTransitionSchema)
-    if ("errorResponse" in bodyResult) return bodyResult.errorResponse
-    const transitionData = bodyResult.data
-
-    // Run mutation
-    try {
-      const result = (await ctx.runMutation(internal.weeks.transitionWeek, {
-        weekNumber: transitionData.weekNumber,
-        newWeek: transitionData.newWeek,
-        players: transitionData.players,
-      })) as {
-        success: boolean
-        error?: string
-        status?: number
-        count?: number
-      }
-
-      if (result.success === false) {
-        return jsonError(
-          result.error || "Transition failed",
-          result.status || 400
-        )
-      }
-
-      console.info(
-        `[Success] POST /api/write/weeks/transition: Transitioned week ${transitionData.weekNumber} -> ${transitionData.newWeek} for ${result.count} players`
-      )
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      })
-    } catch (err: any) {
-      console.error(`[Handler Error] POST /api/write/weeks/transition:`, err)
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})
-
-http.route({
-  path: "/api/read/matches/player",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    // Validate API key
-    const authError = await validateApiKey(request, "READER_API_KEY")
-    if (authError) return authError
-
-    // Search params
-    const { searchParams } = new URL(request.url)
-    const playerName = searchParams.get("playerName")
-
-    if (!playerName) {
-      return jsonError("Missing required query parameter 'playerName'", 400)
-    }
-
-    const weekNumber = searchParams.get("week")
-
-    try {
-      const data = await ctx.runQuery(internal.matches.listPlayerMatches, {
-        playerName,
-        weekNumber: weekNumber ? Number(weekNumber) : undefined,
-      })
-      console.info(
-        `[Success] GET /api/read/matches/player: Retrieved ${data.matches.length} matches for player ${playerName} and week ${weekNumber || "(current)"}`
-      )
-      return new Response(JSON.stringify({ success: true, data }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      })
-    } catch (err: any) {
-      console.error(`[Handler Error] GET /api/read/matches/player:`, err)
-      return jsonError(err.message || "Internal server error.", 500)
-    }
-  }),
-})

@@ -8,7 +8,7 @@ interface StandingRow {
   playerId: Id<"players">
   name: string
   totalPoints: number
-  movement?: "promoted" | "relegated" | "stayed" | "new" | null
+  movement?: "promoted" | "demoted" | "none" | null
 }
 
 interface StandingsTableProps {
@@ -60,13 +60,13 @@ export function StandingsTable({
                 className={cn(
                   "flex items-center gap-1 font-medium",
                   row.movement === "promoted" && "text-green-400",
-                  row.movement === "relegated" && "text-destructive"
+                  row.movement === "demoted" && "text-destructive"
                 )}
               >
                 {row.movement === "promoted" && (
                   <ArrowUpIcon className="size-4" />
                 )}
-                {row.movement === "relegated" && (
+                {row.movement === "demoted" && (
                   <ArrowDownIcon className="size-4" />
                 )}
                 {row.name}

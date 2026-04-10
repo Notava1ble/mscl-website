@@ -7,31 +7,29 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { Id } from "../../../convex/_generated/dataModel"
 
 interface League {
-  _id: Id<"leagues">
+  leagueTier: number
   name: string
-  tierLevel: number
 }
 
 interface LeagueSelectorProps {
   leagues: League[] | undefined
-  selectedLeagueId: string | null
-  onSelect: (leagueId: string) => void
+  selectedLeagueTier: number | null
+  onSelect: (leagueTier: number) => void
   isMobile?: boolean
 }
 
 export function LeagueSelector({
   leagues,
-  selectedLeagueId,
+  selectedLeagueTier,
   onSelect,
   isMobile,
 }: LeagueSelectorProps) {
-  if (!leagues || !selectedLeagueId) {
+  if (!leagues || selectedLeagueTier === null) {
     return (
       <div className="flex gap-2">
-        <Skeleton className="h-10 w-[180px] rounded-md" />
+        <Skeleton className="h-10 w-45 rounded-md" />
       </div>
     )
   }
@@ -42,14 +40,16 @@ export function LeagueSelector({
     )
   }
 
-  const selectedLeague = leagues.find((l) => l._id === selectedLeagueId)
+  const selectedLeague = leagues.find(
+    (league) => league.leagueTier === selectedLeagueTier
+  )
 
   if (isMobile) {
     return (
       <div className="w-full">
         <Select
-          value={selectedLeagueId}
-          onValueChange={(val) => val && onSelect(val)}
+          value={String(selectedLeagueTier)}
+          onValueChange={(value) => onSelect(Number(value))}
         >
           <SelectTrigger className="mx-auto w-full font-minecraft text-xs tracking-wider uppercase">
             <SelectValue placeholder="Select League">
@@ -59,8 +59,8 @@ export function LeagueSelector({
           <SelectContent>
             {leagues.map((league) => (
               <SelectItem
-                key={league._id}
-                value={league._id}
+                key={league.leagueTier}
+                value={String(league.leagueTier)}
                 className="font-minecraft text-xs tracking-wider uppercase"
               >
                 {league.name}
@@ -73,12 +73,15 @@ export function LeagueSelector({
   }
 
   return (
-    <Tabs value={selectedLeagueId} onValueChange={onSelect}>
+    <Tabs
+      value={String(selectedLeagueTier)}
+      onValueChange={(value) => onSelect(Number(value))}
+    >
       <TabsList variant="line" className="flex-wrap bg-transparent">
         {leagues.map((league) => (
           <TabsTrigger
-            key={league._id}
-            value={league._id}
+            key={league.leagueTier}
+            value={String(league.leagueTier)}
             className="font-minecraft text-xs tracking-wider uppercase"
           >
             {league.name}
