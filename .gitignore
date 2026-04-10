@@ -29,4 +29,7 @@ bot/
 nonPublicScripts/
 
 *.report.md
+*.idea.md
+*.plan.md
 
+docker/
