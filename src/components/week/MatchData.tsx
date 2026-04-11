@@ -81,19 +81,15 @@ const formatTime = (ms: number) => {
     .padStart(2, "0")}`
 }
 
-// The ordered list of main phases
-const MAJOR_PHASES = [
-  "overworld",
-  "nether",
-  "bastion",
-  "fortress",
-  "blind",
-  "stronghold",
-  "end",
-  "complete",
-] as const
-
-type Phase = (typeof MAJOR_PHASES)[number]
+type Phase =
+  | "overworld"
+  | "nether"
+  | "bastion"
+  | "fortress"
+  | "blind"
+  | "stronghold"
+  | "end"
+  | "complete"
 
 // Map each timeline event type to its major phase
 const getMajorPhase = (type: string): Phase | null => {
@@ -106,12 +102,6 @@ const getMajorPhase = (type: string): Phase | null => {
   if (type === "projectelo.timeline.blind_travel") return "blind"
   if (type === "story.follow_ender_eye") return "stronghold"
   if (type === "story.enter_the_end") return "end"
-  if (
-    type === "projectelo.timeline.dragon_death" ||
-    type === "end.kill_dragon" ||
-    type === "projectelo.timeline.complete"
-  )
-    return "complete"
   // Deaths, minor events, etc. → not a major phase change
   return null
 }
@@ -142,26 +132,29 @@ const phaseNames: Record<Phase | "forfeit", string> = {
 const matchDataCache = new Map<string, MatchAPIResponseType["data"] | null>()
 
 const MatchData = ({ matchId }: { matchId: string | null }) => {
-  const [matchData, setMatchData] = useState<
-    MatchAPIResponseType["data"] | null | undefined
-  >(undefined)
+  const [loadedMatchData, setLoadedMatchData] = useState<{
+    matchId: string
+    data: MatchAPIResponseType["data"] | null
+  } | null>(null)
 
-  useEffect(() => {
-    if (!matchId) {
-      setMatchData(undefined)
-      return
-    }
+  const matchData = useMemo(() => {
+    if (!matchId) return undefined
 
     const cached = matchDataCache.get(matchId)
-    if (cached !== undefined) {
-      setMatchData(cached)
+    if (cached !== undefined) return cached
+
+    if (loadedMatchData?.matchId === matchId) return loadedMatchData.data
+
+    return undefined
+  }, [matchId, loadedMatchData])
+
+  useEffect(() => {
+    if (!matchId || matchDataCache.has(matchId)) {
       return
     }
 
     const controller = new AbortController()
     let cancelled = false
-
-    setMatchData(undefined)
 
     ;(async () => {
       try {
@@ -173,7 +166,7 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
         const payload = data.data ?? null
         matchDataCache.set(matchId, payload)
         if (!cancelled) {
-          setMatchData(payload)
+          setLoadedMatchData({ matchId, data: payload })
         }
       } catch (error) {
         if (controller.signal.aborted) {
@@ -192,10 +185,7 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
   const playerDataIndexes = useMemo(() => {
     if (!matchData || typeof matchData === "string") return null
 
-    const timelinesByUuid = new Map<
-      string,
-      MatchPayload["timelines"]
-    >()
+    const timelinesByUuid = new Map<string, MatchPayload["timelines"]>()
     for (const timeline of matchData.timelines) {
       const current = timelinesByUuid.get(timeline.uuid)
       if (current) {
@@ -227,16 +217,25 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
     }
 
     const playersWithRawData = matchData.players.map((player) => {
-      const pTimelines = playerDataIndexes.timelinesByUuid.get(player.uuid) ?? []
+      const pTimelines =
+        playerDataIndexes.timelinesByUuid.get(player.uuid) ?? []
 
       const completion = playerDataIndexes.completionsByUuid.get(player.uuid)
       const finishEvent = pTimelines.find(
         (t) => t.type === "projectelo.timeline.complete"
       )
+      const dragonDeathEvent = pTimelines.find(
+        (t) => t.type === "projectelo.timeline.dragon_death"
+      )
       const isFinished = !!(completion || finishEvent)
       const finalTime = isFinished
         ? completion?.time || finishEvent?.time || 0
         : pTimelines[pTimelines.length - 1]?.time || 0
+      const finishStartTime =
+        isFinished && dragonDeathEvent && dragonDeathEvent.time < finalTime
+          ? dragonDeathEvent.time
+          : null
+      const phaseEndTime = finishStartTime ?? finalTime
 
       let currentPhase: Phase = "overworld"
       let currentStartTime: number = 0
@@ -250,8 +249,8 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
       }[] = []
 
       for (const event of pTimelines) {
-        // Skip events after the runner finishes
-        if (event.time > finalTime) continue
+        // Keep the post-dragon-death stretch as the finished block.
+        if (event.time > phaseEndTime) continue
 
         const next = getMajorPhase(event.type)
         if (next && next !== currentPhase) {
@@ -267,13 +266,22 @@ const MatchData = ({ matchId }: { matchId: string | null }) => {
         }
       }
 
-      // Close the last active phase at the player's final time
+      // Close the last active phase before the finish animation starts.
       rawBlocks.push({
         phase: currentPhase,
         startTime: currentStartTime,
-        endTime: finalTime,
-        duration: finalTime - currentStartTime,
+        endTime: phaseEndTime,
+        duration: phaseEndTime - currentStartTime,
       })
+
+      if (finishStartTime !== null && finishStartTime < finalTime) {
+        rawBlocks.push({
+          phase: "complete",
+          startTime: finishStartTime,
+          endTime: finalTime,
+          duration: finalTime - finishStartTime,
+        })
+      }
 
       // Filter out zero duration segments
       const blocks = rawBlocks.filter((b) => b.duration > 0)
@@ -410,7 +418,7 @@ const PhaseBlockTooltip = ({
       <TooltipContent side="top">
         <p className="text-xs font-medium">
           {phaseNames[block.phase]} — {formatTime(block.duration)} (at{" "}
-          {formatTime(block.endTime)})
+          {formatTime(block.startTime)})
         </p>
       </TooltipContent>
     </Tooltip>
