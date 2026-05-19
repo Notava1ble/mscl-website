@@ -47,27 +47,22 @@ export async function timingSafeEqual(a: string, b: string): Promise<boolean> {
   return diff === 0
 }
 
-export async function validateWebsiteApiKey(
-  request: Request
+export async function validateApiKey(
+  request: Request,
+  envVar: "READER_API_KEY" | "WRITER_API_KEY"
 ): Promise<Response | null> {
   const providedKey = request.headers.get("x-api-key")
-  const expectedKey = process.env.WRITER_API_KEY
+  const expectedKey = process.env[envVar]
 
   if (!expectedKey) {
-    console.error("[Config] WRITER_API_KEY environment variable is not set")
+    console.error(`[Config] ${envVar} environment variable is not set`)
     return jsonError("Server misconfiguration.", 500)
   }
 
-  if (!providedKey) {
-    console.warn(`[Auth] Missing x-api-key header for ${request.url}`)
-    return jsonError("Unauthorized", 401)
-  }
+  if (!providedKey) return jsonError("Unauthorized", 401)
 
   const isValid = await timingSafeEqual(providedKey, expectedKey)
-  if (!isValid) {
-    console.warn(`[Auth] Invalid x-api-key header for ${request.url}`)
-    return jsonError("Unauthorized", 401)
-  }
+  if (!isValid) return jsonError("Unauthorized", 401)
 
   return null
 }
@@ -108,5 +103,30 @@ export async function extractRequestBody<T>(
     }
   }
 
+  return { data: parsed.data }
+}
+
+export function extractQueryParams<T>(
+  request: Request,
+  schema: z.ZodType<T>
+): { data: T } | { errorResponse: Response } {
+  const url = new URL(request.url)
+  const raw: Record<string, string> = {}
+  url.searchParams.forEach((value, key) => {
+    raw[key] = value
+  })
+
+  const parsed = schema.safeParse(raw)
+  if (!parsed.success) {
+    console.error("[HTTP] Query param validation failed", parsed.error.issues)
+    return {
+      errorResponse: jsonError("Invalid query parameters.", 400, {
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      }),
+    }
+  }
   return { data: parsed.data }
 }

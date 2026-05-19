@@ -12,12 +12,14 @@ import {
   RegisterPlayerSchema,
   UpdatePlayerLeagueSchema,
   UnregisterPlayerSchema,
+  ListPlayerMatchesSchema,
 } from "./lib/validators"
 import {
+  extractQueryParams,
   extractRequestBody,
   jsonError,
   jsonResponse,
-  validateWebsiteApiKey,
+  validateApiKey,
 } from "./lib/utils"
 import { z } from "zod"
 
@@ -34,7 +36,7 @@ async function runProtectedJsonRoute<T>(args: {
   run: (payload: T) => Promise<RouteResult>
   successStatus?: number
 }) {
-  const authError = await validateWebsiteApiKey(args.request)
+  const authError = await validateApiKey(args.request, "WRITER_API_KEY")
   if (authError) return authError
 
   const bodyResult = await extractRequestBody(args.request, args.schema)
@@ -48,6 +50,31 @@ async function runProtectedJsonRoute<T>(args: {
 
     console.info(`[${args.routeLabel}] Success`, result)
     return jsonResponse(result, args.successStatus ?? 200)
+  } catch (error) {
+    console.error(`[${args.routeLabel}] Unhandled error`, error)
+    return jsonError("Internal server error.", 500)
+  }
+}
+
+async function runReadRoute<T>(args: {
+  request: Request
+  schema: z.ZodType<T>
+  routeLabel: string
+  run: (payload: T) => Promise<RouteResult>
+}) {
+  const authError = await validateApiKey(args.request, "READER_API_KEY") // uses READER_API_KEY
+  if (authError) return authError
+
+  const paramResult = extractQueryParams(args.request, args.schema) // query params, no Content-Type needed
+  if ("errorResponse" in paramResult) return paramResult.errorResponse
+
+  try {
+    const result = await args.run(paramResult.data)
+    if (result.ok === false) {
+      return jsonError(result.error, result.status)
+    }
+    console.info(`[${args.routeLabel}] Success`, result)
+    return jsonResponse(result)
   } catch (error) {
     console.error(`[${args.routeLabel}] Unhandled error`, error)
     return jsonError("Internal server error.", 500)
@@ -191,6 +218,27 @@ http.route({
       routeLabel: "PATCH /api/write/movements",
       run: (payload) =>
         ctx.runMutation(internal.writeApi.processMovements, payload),
+    })
+  ),
+})
+
+// READ ROUTES
+
+http.route({
+  path: "/api/read/player/matches/latest",
+  method: "GET",
+  handler: httpAction(async (ctx, request) =>
+    runReadRoute({
+      request,
+      schema: ListPlayerMatchesSchema,
+      routeLabel: "GET /api/read/player/matches/latest",
+      run: async (payload) => {
+        const result = await ctx.runQuery(
+          internal.readApi.listPlayerMatches,
+          payload
+        )
+        return { ok: true, ...result }
+      },
     })
   ),
 })
