@@ -234,7 +234,7 @@ http.route({
       routeLabel: "GET /api/read/player/matches/latest",
       run: async (payload) => {
         const result = await ctx.runQuery(
-          internal.readApi.listPlayerMatches,
+          internal.readAPI.listPlayerMatches,
           payload
         )
         return { ok: true, ...result }
