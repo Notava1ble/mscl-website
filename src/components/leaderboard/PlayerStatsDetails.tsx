@@ -255,7 +255,7 @@ export function PlayerStatsDetails({ playerId }: PlayerStatsDetailsProps) {
                         Matches
                       </span>
                       <span className="mt-1 text-xs text-muted-foreground tabular-nums">
-                        {week.matches} races
+                        {week.matches} Matches
                       </span>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ export function PlayerStatsDetails({ playerId }: PlayerStatsDetailsProps) {
                   {week.matchDetails.length > 0 && (
                     <div className="px-4 py-3 md:px-5">
                       <span className="mb-2 block text-[9px] font-semibold tracking-wider text-muted-foreground uppercase">
-                        Race Placements
+                        Match Placements
                       </span>
                       <div className="flex flex-col gap-1.5">
                         {week.matchDetails.map((match) => (
@@ -272,7 +272,7 @@ export function PlayerStatsDetails({ playerId }: PlayerStatsDetailsProps) {
                             className="flex items-center justify-between rounded-md border border-primary/10 bg-card/20 px-3 py-1.5 text-xs"
                           >
                             <span className="font-minecraft text-[10px] tracking-wider text-muted-foreground uppercase">
-                              Race {match.matchNumber}
+                              Match {match.matchNumber}
                             </span>
                             <div className="flex items-center gap-2">
                               <span
