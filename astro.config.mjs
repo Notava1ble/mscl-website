@@ -57,6 +57,16 @@ export default defineConfig({
           ],
         },
         {
+          label: "Tournaments",
+          collapsed: false,
+          items: [
+            {
+              label: "League 1 Champtionships",
+              slug: "tournaments/league1-championship",
+            },
+          ],
+        },
+        {
           label: "Using the League Bot",
           collapsed: false,
           items: [{ label: "Command List", slug: "bot/commands" }],

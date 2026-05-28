@@ -10,7 +10,7 @@ export const SWISS_RULES = [
 export const TIEBREAKS = ["Opponent score", "Avg completion time"] as const
 
 export const BRACKET_RULES = [
-  { label: "Swiss #1", value: "Picks R1 opponent" },
+  { label: "Robin #1", value: "Picks R1 opponent" },
   { label: "Semis", value: "Bo5" },
   { label: "Grand final", value: "Bo7" },
 ] as const
