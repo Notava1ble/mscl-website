@@ -49,11 +49,7 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 1,
     criteria: "Autoqualify: Highest placed unqualified player in Week 1",
-    player: {
-      name: "NotAva1able",
-      status: "Qualified",
-      twitchUsername: "notava1able",
-    },
+    player: null,
   },
   {
     seed: 2,
@@ -61,11 +57,7 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 2,
     criteria: "Autoqualify: Highest placed unqualified player in Week 2",
-    player: {
-      name: "Feinberg",
-      status: "Qualified",
-      twitchUsername: "feinberg",
-    },
+    player: null,
   },
   {
     seed: 3,
@@ -73,11 +65,7 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 3,
     criteria: "Autoqualify: Highest placed unqualified player in Week 3",
-    player: {
-      name: "Infume",
-      status: "Qualified",
-      twitchUsername: "infume",
-    },
+    player: null,
   },
   {
     seed: 4,
@@ -85,11 +73,7 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 4,
     criteria: "Autoqualify: Highest placed unqualified player in Week 4",
-    player: {
-      name: "Doogile",
-      status: "Qualified",
-      twitchUsername: "doogile",
-    },
+    player: null,
   },
   {
     seed: 5,

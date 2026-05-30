@@ -3,7 +3,7 @@ title: League 1 Championships
 description: An overview on how the league 1 championships will work.
 ---
 
-**League 1 Championships** is a tournament that aims to crown the best league one player of the next 5 weeks. With a total price pool of $380 USD, we aim to increase our reach to more players, and make Ranked Leagues an integral part of the MCSR community.
+**League 1 Championships** is a tournament that aims to crown the best league one player of the next 5 weeks. With a total price pool of $400 USD, we aim to increase our reach to more players, and make Ranked Leagues an integral part of the MCSR community.
 
 ## Format
 
