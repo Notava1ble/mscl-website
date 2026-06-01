@@ -67,7 +67,7 @@ const TOTAL_QUAL_SLOT_COUNT = QUAL_SLOTS.length
     <div class="relative z-10 container mx-auto px-6 pt-32">
       <div class="mb-20 pt-4 text-center md:pt-8">
         <h1
-          class="font-minecraft text-5xl font-bold tracking-tight text-white uppercase md:text-8xl"
+          class="font-minecraft text-3xl font-bold tracking-tight text-white uppercase sm:text-5xl md:text-8xl"
         >
           LEAGUE 1 <span class="text-cyan-400">CHAMPIONSHIPS</span>
         </h1>
@@ -90,13 +90,13 @@ const TOTAL_QUAL_SLOT_COUNT = QUAL_SLOTS.length
 
               return (
                 <div
-                  class={`border-2 bg-[#12161a] ${cardBorder} flex min-h-40 items-center px-8 py-8 md:px-10 md:py-9`}
+                  class={`border-2 bg-[#12161a] ${cardBorder} flex min-h-28 items-center px-2 py-2 sm:min-h-40 sm:px-8 sm:py-8 md:px-10 md:py-9`}
                 >
                   <a
                     href={s.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="block w-full overflow-hidden font-minecraft text-lg leading-tight font-bold tracking-tight text-ellipsis whitespace-nowrap text-white uppercase transition-colors hover:text-lime-400 md:text-3xl"
+                    class="mx-auto block w-full max-w-full overflow-hidden px-3 text-center font-minecraft text-base leading-tight font-bold tracking-tight text-white uppercase break-all transition-colors hover:text-lime-400 sm:text-lg sm:break-normal sm:whitespace-nowrap sm:text-ellipsis md:text-3xl"
                   >
                     {displayUrl}
                   </a>
@@ -117,7 +117,7 @@ const TOTAL_QUAL_SLOT_COUNT = QUAL_SLOTS.length
             Qualified Players
           </h2>
           <span
-            class="font-sans text-xs font-bold tracking-wider text-lime-400 uppercase"
+            class="text-right font-sans text-xs font-bold tracking-wider text-lime-400 uppercase"
           >
             {LOCKED_QUAL_SLOT_COUNT}/{TOTAL_QUAL_SLOT_COUNT} Slots Locked
           </span>
