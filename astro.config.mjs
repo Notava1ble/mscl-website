@@ -64,6 +64,10 @@ export default defineConfig({
               label: "League 1 Champtionships",
               slug: "tournaments/league1-championship",
             },
+            {
+              label: "League Championships (2-6)",
+              slug: "tournaments/championships",
+            },
           ],
         },
         {
