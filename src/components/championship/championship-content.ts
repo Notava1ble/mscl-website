@@ -49,7 +49,11 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 1,
     criteria: "Autoqualify: Highest placed unqualified player in Week 1",
-    player: null,
+    player: {
+      name: "Steez",
+      status: "Qualified",
+      twitchUsername: "steezsr",
+    },
   },
   {
     seed: 2,
