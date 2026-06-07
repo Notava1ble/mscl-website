@@ -1,7 +1,7 @@
 export const Z_SCORE_FORMULA = "(league_avg - player_avg) / league_std"
 
 export const SWISS_RULES = [
-  { label: "Rounds", value: "5" },
+  { label: "Rounds", value: "7" },
   { label: "Time limit", value: "13 min" },
   { label: "Win / loss", value: "1 / 0 pts" },
   { label: "Advance", value: "Top 4" },

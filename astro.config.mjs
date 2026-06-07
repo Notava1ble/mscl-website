@@ -61,7 +61,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             {
-              label: "League 1 Champtionships",
+              label: "League 1 Championships",
               slug: "tournaments/league1-championship",
             },
             // {
