@@ -73,7 +73,11 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 3,
     criteria: "Autoqualify: Highest placed unqualified player in Week 3",
-    player: null,
+    player: {
+      name: "okshey",
+      status: "Qualified",
+      twitchUsername: "okshey",
+    },
   },
   {
     seed: 4,
