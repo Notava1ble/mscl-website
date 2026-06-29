@@ -85,21 +85,33 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "weekly",
     week: 4,
     criteria: "Autoqualify: Highest placed unqualified player in Week 4",
-    player: null,
+    player: {
+      name: "BlazeMind",
+      status: "Qualified",
+      twitchUsername: "blazemind",
+    },
   },
   {
     seed: 5,
     title: "Z-Score Rank #1",
     type: "zscore",
     criteria: "Top unqualified by weekly z-score after Week 4",
-    player: null,
+    player: {
+      name: "Kohout",
+      status: "Qualified",
+      twitchUsername: "kohout135",
+    },
   },
   {
     seed: 6,
     title: "Z-Score Rank #2",
     type: "zscore",
     criteria: "Second unqualified by weekly z-score after Week 4",
-    player: null,
+    player: {
+      name: "staremc",
+      status: "Qualified",
+      twitchUsername: "staremc",
+    },
   },
   {
     seed: 7,
