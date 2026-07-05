@@ -119,7 +119,11 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "lcq",
     week: 5,
     criteria: "Week 5 bracket: 1st Place finisher",
-    player: null,
+    player: {
+      name: "romuxii",
+      status: "Qualified",
+      twitchUsername: "romuxii",
+    },
   },
   {
     seed: 8,
@@ -127,7 +131,11 @@ export const QUAL_SLOTS: QualificationSlot[] = [
     type: "lcq",
     week: 5,
     criteria: "Week 5 bracket: 2nd Place finisher",
-    player: null,
+    player: {
+      name: "cornflakesmcsr",
+      status: "Qualified",
+      twitchUsername: "cornflakesmcsr",
+    },
   },
 ]
 
