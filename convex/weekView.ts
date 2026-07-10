@@ -79,6 +79,12 @@ export const getWeekStandings = query({
     registrations.sort((a, b) => {
       const pointsDiff = b.totalPoints - a.totalPoints
       if (pointsDiff !== 0) return pointsDiff
+
+      const averageTimeDiff =
+        (a.averageTimeMs ?? Number.POSITIVE_INFINITY) -
+        (b.averageTimeMs ?? Number.POSITIVE_INFINITY)
+      if (averageTimeDiff !== 0) return averageTimeDiff
+
       return a.playerIgn.localeCompare(b.playerIgn)
     })
 

@@ -45,6 +45,9 @@ export default defineSchema({
     // Store computed totals here to make sorting fast
     computedSeedPoints: v.number(),
     totalPoints: v.number(),
+    // Backfilled for existing registrations by migrations.backfillRegistrationAverageTimes.
+    // Kept optional until every deployed registration has been migrated.
+    averageTimeMs: v.optional(v.union(v.number(), v.null())),
     playerIgn: v.string(),
     weekNumber: v.number(),
     leagueTier: v.number(),

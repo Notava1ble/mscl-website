@@ -12,6 +12,7 @@ import {
   syncPlayerRegistrationSnapshots,
   syncPlayerWinnerSnapshots,
 } from "./lib/readModels"
+import { calculateRegistrationAverageTimeMs } from "./lib/registrationAverage"
 
 type ApiSuccess<T extends Record<string, unknown> = Record<string, never>> = {
   ok: true
@@ -108,6 +109,29 @@ async function applyRegistrationPointDelta(
   })
 
   return await ctx.db.get(registration._id)
+}
+
+async function recalculateRegistrationAverageTime(
+  ctx: MutationCtx,
+  competition: CompetitionDoc,
+  playerId: Id<"players">
+) {
+  const registration = await getRegistration(ctx, competition._id, playerId)
+  if (!registration) return
+
+  const results = await ctx.db
+    .query("matchResults")
+    .withIndex("by_player_and_competition", (q) =>
+      q.eq("playerId", playerId).eq("competitionId", competition._id)
+    )
+    .take(128)
+
+  await ctx.db.patch(registration._id, {
+    averageTimeMs: calculateRegistrationAverageTimeMs(
+      results,
+      competition.maxTimeLimitMs
+    ),
+  })
 }
 
 async function deleteMatchResultsForMatch(
@@ -379,6 +403,7 @@ export const registerPlayer = internalMutation({
         manualAdjustmentPoints: 0,
         computedSeedPoints: 0,
         totalPoints: 0,
+        averageTimeMs: null,
         ...buildRegistrationSnapshot(player, competition),
       })
       registrationCreated = true
@@ -560,6 +585,7 @@ export const clearMatchResults = internalMutation({
         playerId,
         -deletedPoints
       )
+      await recalculateRegistrationAverageTime(ctx, competition, playerId)
     }
 
     return {
@@ -739,6 +765,14 @@ export const importMatchData = internalMutation({
         playerId,
         pointDelta
       )
+    }
+
+    const affectedPlayerIds = new Set<Id<"players">>([
+      ...pointDeltasByPlayer.keys(),
+      ...preparedResults.map(({ player }) => player._id),
+    ])
+    for (const playerId of affectedPlayerIds) {
+      await recalculateRegistrationAverageTime(ctx, competition, playerId)
     }
 
     await ctx.db.patch(match._id, buildMatchWinnerPatch(playersForWinner))
