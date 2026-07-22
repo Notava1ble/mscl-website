@@ -243,11 +243,7 @@ export function PlayerStatsDetails({ playerId }: PlayerStatsDetailsProps) {
                         Average Time
                       </span>
                       <span className="mt-1 text-xs font-medium text-foreground tabular-nums">
-                        {formatTime(
-                          week.timedMatches > 0
-                            ? Math.round(week.totalTimeMs / week.timedMatches)
-                            : 0
-                        )}
+                        {formatTime(Math.round(week.averageTimeMs ?? 0))}
                       </span>
                     </div>
                     <div className="flex flex-col px-4 py-2 md:px-5">
@@ -278,27 +274,35 @@ export function PlayerStatsDetails({ playerId }: PlayerStatsDetailsProps) {
                               <span
                                 className={cn(
                                   "font-minecraft font-semibold",
-                                  match.placement === 1
-                                    ? "text-yellow-500"
-                                    : match.placement === 2
-                                      ? "text-slate-300"
-                                      : match.placement === 3
-                                        ? "text-amber-600"
-                                        : "text-foreground"
+                                  match.missed
+                                    ? "text-muted-foreground"
+                                    : match.placement === 1
+                                      ? "text-yellow-500"
+                                      : match.placement === 2
+                                        ? "text-slate-300"
+                                        : match.placement === 3
+                                          ? "text-amber-600"
+                                          : "text-foreground"
                                 )}
                               >
-                                {match.dnf
-                                  ? "DNF"
-                                  : match.placement !== null
-                                    ? `#${match.placement}`
-                                    : "-"}
+                                {match.missed
+                                  ? "Missed"
+                                  : match.dnf
+                                    ? "DNF"
+                                    : match.placement !== null
+                                      ? `#${match.placement}`
+                                      : "-"}
                               </span>
-                              <span className="text-[11px] text-muted-foreground/80 tabular-nums">
-                                {formatTime(match.timeMs ?? 0)}
-                              </span>
-                              <span className="rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary/80 tabular-nums">
-                                +{match.pointsWon} pts
-                              </span>
+                              {!match.missed && (
+                                <>
+                                  <span className="text-[11px] text-muted-foreground/80 tabular-nums">
+                                    {formatTime(match.timeMs ?? 0)}
+                                  </span>
+                                  <span className="rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary/80 tabular-nums">
+                                    +{match.pointsWon} pts
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}
